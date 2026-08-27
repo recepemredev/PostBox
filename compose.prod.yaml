@@ -44,6 +44,7 @@ services:
     image: postbox-frontend:prod
     build:
       target: prod
+    env_file: !reset []
     volumes: !reset []
     environment:
       NODE_ENV: production
