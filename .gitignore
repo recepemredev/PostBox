@@ -40,5 +40,7 @@
 .DS_Store
 Thumbs.db
 
-
+# Internal working documents. The curated, reviewer-facing record is docs/adr/;
+# these are the working log behind it and stay on the maintainer's machine.
+/.claude/docs/
 /.claude/walkthroughs/
