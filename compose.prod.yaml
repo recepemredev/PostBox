@@ -1,0 +1,54 @@
+# Production override. Applied on top of compose.yaml:
+#
+#   docker compose -f compose.yaml -f compose.prod.yaml up
+#
+# No server exists — this profile is how production readiness is verified locally
+# (see .claude/docs/deployment.md). Development-only services carry the `dev`
+# profile and are simply never enabled here.
+#
+# `!reset` removes an entry the base file set. Without it Compose merges volume
+# lists, and the bind mounts would shadow the code baked into the images — which
+# would make this profile a development stack wearing a production label.
+
+x-prod-php: &prod-php
+  # Named explicitly so the image assertions in CI have a stable target to inspect.
+  image: postbox-backend:prod
+  build:
+    target: prod
+  volumes: !reset []
+  environment:
+    APP_ENV: production
+    APP_DEBUG: "false"
+  restart: unless-stopped
+
+services:
+  postgres:
+    ports: !reset []
+    restart: unless-stopped
+
+  redis:
+    ports: !reset []
+    restart: unless-stopped
+
+  migrate:
+    <<: *prod-php
+    restart: "no"
+
+  backend: *prod-php
+
+  worker: *prod-php
+
+  scheduler: *prod-php
+
+  frontend:
+    image: postbox-frontend:prod
+    build:
+      target: prod
+    volumes: !reset []
+    environment:
+      NODE_ENV: production
+    restart: unless-stopped
+
+  nginx:
+    image: postbox-nginx:prod
+    restart: unless-stopped
