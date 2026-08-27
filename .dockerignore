@@ -1,0 +1,35 @@
+# The build context is the repository root, because the images need both the
+# application source and the files under docker/. Everything that is not part of
+# an image is excluded — not only for build speed, but because a stale local
+# artefact silently baked into an image is a class of bug that only shows up in
+# production. The framework's cached package manifest is exactly that: built from
+# the development dependency set, it would name a provider the production image
+# does not contain.
+
+.git
+.github
+.claude
+docs
+load
+sdk
+sink
+
+**/.env
+**/.env.*
+!.env.example
+
+backend/vendor
+backend/bootstrap/cache/*.php
+backend/storage/logs/*.log
+backend/storage/framework/cache/data/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*.php
+backend/.phpunit.cache
+backend/.phpunit.result.cache
+
+frontend/node_modules
+frontend/.next
+frontend/out
+
+*.md
+!README.md
