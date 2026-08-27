@@ -1,0 +1,20 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/phpstan/phpstan-mockery/extension.neon
+
+parameters:
+    level: max
+
+    paths:
+        - app
+        - config
+        - database
+        - routes
+
+    # Tests are deliberately outside the analysed paths. Pest binds `$this` inside
+    # a test closure to the TestCase at runtime, which no static analyser can see,
+    # so every assertion in the suite would be reported as a call on an undefined
+    # method. The suite is verified by running it; Pint still formats it.
+    #
+    # There is no baseline file and there will not be one — see decision D5.
+    treatPhpDocTypesAsCertain: false
