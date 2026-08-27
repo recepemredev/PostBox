@@ -1,0 +1,156 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend — Pint, Larastan, Pest
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # The suite runs against PostgreSQL, not SQLite: Row Level Security,
+        # partitioning and CHECK constraints are the behaviour under test.
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: postbox_test
+          POSTGRES_USER: postbox
+          POSTGRES_PASSWORD: postbox-ci-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postbox -d postbox_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:Zm9yLWNpLW9ubHktbm90LWEtcmVhbC1zZWNyZXQtMDAwMDA=
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: postbox_test
+      DB_USERNAME: postbox
+      DB_PASSWORD: postbox-ci-password
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      QUEUE_CONNECTION: redis
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_pgsql, redis, intl, bcmath, pcntl, sockets, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-
+
+      - run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Create the empty backend env marker
+        # Configuration comes from the job environment above. Dotenv reads this
+        # path unconditionally and reports the failed read as a test warning.
+        run: touch .env
+
+      - name: Pint
+        run: vendor/bin/pint --test
+
+      - name: Larastan (max, no baseline)
+        run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+
+      - name: Assert no PHPStan baseline exists
+        # Decision D5: the level is never lowered and a baseline is never created.
+        # A reviewer looking for one should find nothing — including in CI.
+        run: test ! -f phpstan-baseline.neon
+
+      - name: Pest
+        run: vendor/bin/pest --colors=always
+
+  frontend:
+    name: Frontend — ESLint, tsc, build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: Next build
+        run: npm run build
+
+  images:
+    name: Images — topology assertions and container smoke test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assert the two task runners expose the same targets
+        run: bash docker/scripts/assert-target-parity.sh
+
+      - name: Prepare environment file
+        run: cp .env.example .env
+
+      - name: Build the production images
+        run: docker compose -f compose.yaml -f compose.prod.yaml build
+
+      - name: Assert no development dependency and no root process in a production image
+        run: bash docker/scripts/assert-production-images.sh
+
+      - name: Assert the scheduler cannot be scaled
+        run: bash docker/scripts/assert-scheduler-singleton.sh
+
+      - name: Start the production profile and assert the deep health check
+        run: make prod-up
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f compose.yaml -f compose.prod.yaml logs --tail=200
+
+      - name: Stop the stack
+        if: always()
+        run: make prod-down
