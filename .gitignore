@@ -1,0 +1,44 @@
+# Configuration. The single source of truth is the root .env, generated from .env.example.
+.env
+.env.*
+!.env.example
+
+# Dependencies. These live in named Docker volumes, never on the host filesystem.
+/backend/vendor/
+/frontend/node_modules/
+/sdk/php/vendor/
+/sdk/ts/node_modules/
+
+# Build output
+/frontend/.next/
+/frontend/out/
+/backend/public/build/
+/backend/public/hot
+
+# Laravel runtime state
+/backend/storage/framework/cache/data/*
+/backend/storage/framework/sessions/*
+/backend/storage/framework/testing/*
+/backend/storage/framework/views/*
+/backend/storage/logs/*
+/backend/bootstrap/cache/*
+!/backend/storage/**/.gitignore
+!/backend/bootstrap/cache/.gitignore
+
+# Tooling caches
+.phpunit.result.cache
+/backend/.phpunit.cache/
+/frontend/.eslintcache
+/frontend/*.tsbuildinfo
+
+# Benchmark output. The k6 scripts are committed; raw run output is not.
+/load/results/
+
+# Editor and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+
+/.claude/walkthroughs/

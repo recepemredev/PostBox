@@ -1,0 +1,20 @@
+# Line endings are normalised in the repository and checked out as LF everywhere.
+# The project is developed on Windows but built and tested on Linux containers;
+# a CRLF entering a shell script or a Dockerfile breaks the build silently.
+* text=auto eol=lf
+
+# PowerShell is the one exception: the Windows task runner is checked out CRLF.
+*.ps1 text eol=crlf
+
+*.sh      text eol=lf
+Makefile  text eol=lf
+*.php     text eol=lf
+*.ts      text eol=lf
+*.tsx     text eol=lf
+*.yaml    text eol=lf
+*.yml     text eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.gz  binary
