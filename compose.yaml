@@ -1,0 +1,185 @@
+name: postbox
+
+# Development topology. `compose.prod.yaml` overrides it into the production
+# profile; nginx, the workers and the scheduler exist in both, so behaviour that
+# depends on them cannot differ between the two.
+
+x-datastores-ready: &datastores-ready
+  postgres:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+
+# Long-running PHP services wait for the one-shot migrate job as well, so three
+# containers never race to run the same migration — or, in development, to install
+# into the empty vendor volume.
+x-schema-ready: &schema-ready
+  postgres:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+  migrate:
+    condition: service_completed_successfully
+
+x-php: &php
+  # One image, four commands: the API, the workers, the scheduler and the one-shot
+  # migrate job. Naming it explicitly stops Compose from tagging four copies.
+  image: postbox-backend:dev
+  build:
+    context: .
+    dockerfile: docker/backend/Dockerfile
+    target: dev
+  env_file:
+    - .env
+  volumes:
+    # The source tree is bind-mounted read-only from the container's point of
+    # view: the host owns it and the container user cannot write to it. Every
+    # path the framework writes to is therefore a named volume — which also
+    # keeps the two largest trees off the host filesystem, where on Windows and
+    # macOS they are the single biggest source of container I/O.
+    - ./backend:/var/www/html
+    - backend_vendor:/var/www/html/vendor
+    - backend_bootstrap_cache:/var/www/html/bootstrap/cache
+    - backend_storage:/var/www/html/storage
+  depends_on: *schema-ready
+
+x-php-healthcheck: &php-healthcheck
+  # The same action the HTTP endpoint runs, so a container is reported healthy
+  # under exactly the conditions /api/health reports healthy.
+  test: ["CMD", "php", "artisan", "postbox:health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 60s
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${DB_FORWARD_PORT}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_FORWARD_PORT}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  migrate:
+    <<: *php
+    command: ["php", "artisan", "migrate", "--force"]
+    depends_on: *datastores-ready
+    restart: "no"
+
+  backend:
+    <<: *php
+    healthcheck: *php-healthcheck
+
+  # Stateless and horizontally scalable: no host port, no local state, no fixed
+  # container name. `--scale worker=5` is a supported operation, verified in
+  # Step 11. Horizon replaces the bare worker in Step 6.
+  worker:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--tries=1", "--max-time=3600"]
+    healthcheck: *php-healthcheck
+
+  # Singleton. A second scheduler would double every periodic dispatch, so the
+  # fixed container name and the replica count make scaling it fail rather than
+  # silently succeed. CI asserts that it does fail.
+  scheduler:
+    <<: *php
+    container_name: postbox-scheduler
+    command: ["php", "artisan", "schedule:work"]
+    deploy:
+      replicas: 1
+    healthcheck: *php-healthcheck
+
+  frontend:
+    image: postbox-frontend:dev
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+      target: dev
+    env_file:
+      - .env
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:3000"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+
+  # The single origin. Both profiles route through it, so cookie scope and CORS
+  # behaviour are identical in development and production.
+  nginx:
+    image: postbox-nginx:dev
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    ports:
+      - "${HTTP_PORT}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/nginx-health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  mailpit:
+    image: axllent/mailpit:latest
+    profiles: ["dev"]
+    ports:
+      - "${MAILPIT_HTTP_PORT}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # Not started by `up`. `docker compose run --rm healthgate` polls the deep health
+  # check from inside the network and exits non-zero if it never comes up — the
+  # same script the CI image job runs, so local and CI verification cannot drift.
+  healthgate:
+    image: curlimages/curl:8.11.1
+    profiles: ["gate"]
+    entrypoint: ["sh", "/scripts/health-gate.sh"]
+    environment:
+      HEALTH_URL: http://nginx:8080/api/health
+    volumes:
+      - ./docker/scripts:/scripts:ro
+    depends_on:
+      nginx:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_vendor:
+  backend_bootstrap_cache:
+  backend_storage:
+  frontend_node_modules:
