@@ -10,6 +10,7 @@ set -euo pipefail
 
 targets_declared_in() {
     grep -m1 '^# TARGETS:' "$1" \
+        | tr -d '\r' \
         | sed 's/^# TARGETS: *//' \
         | tr ' ' '\n' \
         | sed '/^$/d' \
