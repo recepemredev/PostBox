@@ -46,7 +46,7 @@ final readonly class ResolveApiKey
 
         $this->context->set($tenant);
 
-        $key = ApiKey::query()->usable()->where('token_hash', $token->hash())->first();
+        $key = ApiKey::query()->current()->where('token_hash', $token->hash())->first();
 
         if (! $key instanceof ApiKey) {
             // Nothing was authenticated, so nothing may stay bound: a later query

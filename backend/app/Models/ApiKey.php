@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
+use App\Models\Concerns\Expirable;
 use App\Models\Concerns\HasPublicId;
 use Carbon\CarbonImmutable;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -37,7 +37,7 @@ use Illuminate\Support\Carbon;
  */
 final class ApiKey extends Model
 {
-    use BelongsToTenant, HasPublicId;
+    use BelongsToTenant, Expirable, HasPublicId;
 
     /** @var list<string> */
     protected $fillable = ['name'];
@@ -56,22 +56,6 @@ final class ApiKey extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
-    }
-
-    /**
-     * Neither revoked nor expired. Authentication looks a key up through this
-     * scope, so a rejected key and an unknown key take the same path and produce
-     * the same answer — the caller learns nothing from the difference.
-     *
-     * @param  Builder<$this>  $query
-     */
-    public function scopeUsable(Builder $query): void
-    {
-        $query->whereNull('revoked_at')->where(
-            static fn (Builder $key): Builder => $key
-                ->whereNull('expires_at')
-                ->orWhere('expires_at', '>', now()),
-        );
     }
 
     /**
