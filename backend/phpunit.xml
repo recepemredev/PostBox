@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="vendor/autoload.php"
+         bootstrap="tests/bootstrap.php"
          colors="true"
 >
     <testsuites>
@@ -17,25 +17,4 @@
             <directory>app</directory>
         </include>
     </source>
-    <php>
-        <!--
-            Tests run against real PostgreSQL and real Redis, not SQLite. Row Level
-            Security, partitioning and CHECK constraints are PostgreSQL behaviour;
-            a test suite on another engine would prove nothing about them.
-            The database and Redis index are forced so a test run can never touch
-            the development data the container environment points at.
-        -->
-        <env name="APP_ENV" value="testing" force="true"/>
-        <env name="APP_DEBUG" value="false" force="true"/>
-        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
-        <env name="BCRYPT_ROUNDS" value="4"/>
-        <env name="DB_CONNECTION" value="pgsql" force="true"/>
-        <env name="DB_DATABASE" value="postbox_test" force="true"/>
-        <env name="REDIS_DB" value="1" force="true"/>
-        <env name="REDIS_CACHE_DB" value="1" force="true"/>
-        <env name="QUEUE_CONNECTION" value="redis" force="true"/>
-        <env name="CACHE_STORE" value="array" force="true"/>
-        <env name="SESSION_DRIVER" value="array" force="true"/>
-        <env name="MAIL_MAILER" value="array" force="true"/>
-    </php>
 </phpunit>

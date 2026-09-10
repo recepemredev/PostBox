@@ -10,12 +10,13 @@ use Illuminate\Database\Connection;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Database\Migrations\MigrationRepositoryInterface;
 use Illuminate\Database\Migrations\Migrator;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Redis\Connections\Connection as RedisConnection;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
-pest()->extend(TestCase::class)->use(RefreshDatabase::class)->in('Feature');
+// TestCase applies RefreshDatabase itself, so that it can migrate as the owning
+// role while the test queries as the application role.
+pest()->extend(TestCase::class)->in('Feature');
 
 /**
  * Builds the health action from healthy doubles, replacing only the collaborator a
