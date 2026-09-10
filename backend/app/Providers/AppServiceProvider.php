@@ -4,21 +4,45 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Support\Identity\Permissions;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\Auth\Factory as AuthFactory;
+use Illuminate\Contracts\Auth\StatefulGuard;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 
 final class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
         /*
-         * It holds state for the length of one request, job or command. A second
-         * instance would be a second answer to "which tenant is this?", which is
-         * the one question this application cannot afford two answers to.
+         * Both hold state for the length of one request, job or command. A second
+         * instance of either would be a second answer to "which tenant is this?",
+         * which is the one question this application cannot afford two answers to.
          */
         $this->app->singleton(TenantContext::class);
+        $this->app->singleton(Permissions::class);
+
+        /*
+         * The dashboard guard, named once. Actions depend on the contract rather
+         * than on a guard name string repeated across the identity layer.
+         */
+        $this->app->bind(
+            StatefulGuard::class,
+            static function (Application $app): StatefulGuard {
+                $guard = $app->make(AuthFactory::class)->guard('web');
+
+                assert($guard instanceof StatefulGuard);
+
+                return $guard;
+            },
+        );
     }
 
     public function boot(): void
@@ -36,5 +60,21 @@ final class AppServiceProvider extends ServiceProvider
          * Paginated collections keep their envelope — they need it for the cursor.
          */
         JsonResource::withoutWrapping();
+
+        $this->configureRateLimiting();
+    }
+
+    /**
+     * Authentication is rate limited on two keys at once: the address being tried,
+     * so one account cannot be ground down from many hosts, and the host trying,
+     * so one host cannot sweep many accounts. Ingest gets a token bucket of its
+     * own in Step 5 — a different mechanism for a different problem.
+     */
+    private function configureRateLimiting(): void
+    {
+        RateLimiter::for('login', static fn (Request $request): array => [
+            Limit::perMinute(5)->by(Str::lower($request->string('email')->value()).'|'.$request->ip()),
+            Limit::perMinute(20)->by((string) $request->ip()),
+        ]);
     }
 }
