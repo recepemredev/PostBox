@@ -9,6 +9,7 @@ use App\Models\Concerns\HasPublicId;
 use Database\Factories\ApplicationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -35,5 +36,13 @@ final class Application extends Model
     public static function publicIdPrefix(): string
     {
         return 'app';
+    }
+
+    /**
+     * @return HasMany<Endpoint, $this>
+     */
+    public function endpoints(): HasMany
+    {
+        return $this->hasMany(Endpoint::class);
     }
 }
