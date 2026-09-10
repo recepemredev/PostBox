@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\EstablishTenant;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -38,17 +39,19 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'tenant' => EstablishTenant::class,
+            'api-key' => AuthenticateApiKey::class,
         ]);
 
         /*
          * Order is not cosmetic here. Route model binding resolves a model through
          * the tenant scope, so the tenant has to be established before it runs —
          * otherwise a tenant's own resource is answered with 404 and the bug looks
-         * like a routing mistake rather than an ordering one. It is declared
+         * like a routing mistake rather than an ordering one. Both are declared
          * relative to the framework's list rather than by restating it, so a
          * framework release that adds a middleware does not silently lose it.
          */
         $middleware->prependToPriorityList(SubstituteBindings::class, EstablishTenant::class);
+        $middleware->prependToPriorityList(SubstituteBindings::class, AuthenticateApiKey::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         /*
