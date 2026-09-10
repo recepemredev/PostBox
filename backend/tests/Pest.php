@@ -3,6 +3,14 @@
 declare(strict_types=1);
 
 use App\Actions\Health\CheckSystemHealth;
+use App\Actions\Identity\IssueApiKey;
+use App\Enums\RoleSlug;
+use App\Models\Membership;
+use App\Models\Tenant;
+use App\Models\User;
+use App\Support\Identity\IssuedApiKey;
+use App\Support\Tenancy\TenantContext;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Contracts\Queue\Queue;
 use Illuminate\Contracts\Redis\Factory as RedisFactory;
@@ -105,4 +113,57 @@ function degradedChecks(TestResponse $response): array
         static fn (array $check): string => $check['name'],
         array_filter($checks, static fn (array $check): bool => $check['status'] === 'degraded'),
     ));
+}
+
+/*
+|--------------------------------------------------------------------------
+| Tenancy
+|--------------------------------------------------------------------------
+|
+| Every tenant-owned row is written for the tenant that is current, so a test
+| says which tenant it is acting for rather than passing an identifier around.
+| That is not a testing convenience — it is the same path the application takes.
+|
+*/
+
+function tenantNamed(string $name): Tenant
+{
+    return Tenant::factory()->create(['name' => $name]);
+}
+
+/**
+ * Runs a callback with a tenant current, and restores whatever was current.
+ *
+ * @template TReturn
+ *
+ * @param  Closure(): TReturn  $callback
+ * @return TReturn
+ */
+function forTenant(Tenant $tenant, Closure $callback): mixed
+{
+    return app(TenantContext::class)->runFor($tenant, $callback);
+}
+
+/**
+ * A user who belongs to a tenant, in the role given.
+ */
+function memberOf(Tenant $tenant, RoleSlug $role = RoleSlug::Admin): User
+{
+    $user = User::factory()->create();
+
+    forTenant($tenant, static function () use ($user, $role): void {
+        Membership::factory()->withRole($role)->create(['user_id' => $user->id]);
+    });
+
+    return $user;
+}
+
+/**
+ * Mints a credential through the only code path that mints credentials. A test
+ * that assembled the row itself would be asserting against a second definition
+ * of what a key is.
+ */
+function issueKeyFor(Tenant $tenant, User $creator, ?CarbonImmutable $expiresAt = null): IssuedApiKey
+{
+    return forTenant($tenant, static fn (): IssuedApiKey => app(IssueApiKey::class)->handle('deploy', $creator, $expiresAt));
 }

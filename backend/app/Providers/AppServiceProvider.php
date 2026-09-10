@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\ServiceProvider;
@@ -12,7 +13,12 @@ final class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        /*
+         * It holds state for the length of one request, job or command. A second
+         * instance would be a second answer to "which tenant is this?", which is
+         * the one question this application cannot afford two answers to.
+         */
+        $this->app->singleton(TenantContext::class);
     }
 
     public function boot(): void

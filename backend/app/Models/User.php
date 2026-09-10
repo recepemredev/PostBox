@@ -4,47 +4,65 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Concerns\HasPublicId;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 
-class User extends Authenticatable
+/**
+ * A person, not a tenant's property: the same identity can hold a membership in
+ * more than one tenant, so the row itself sits outside the boundary and every
+ * question about what it may do is asked of a membership.
+ *
+ * @property int $id
+ * @property string $public_id
+ * @property string $name
+ * @property string $email
+ * @property string $password
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
+ */
+final class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, HasPublicId;
 
     /**
-     * The attributes that are mass assignable.
+     * There is no "remember me": a dashboard session is deliberately short-lived,
+     * and an empty name here is how the framework is told the column does not
+     * exist rather than left to look for one.
      *
-     * @var list<string>
+     * @var string
      */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-    ];
+    protected $rememberTokenName = '';
+
+    /** @var list<string> */
+    protected $fillable = ['name', 'email', 'password'];
+
+    /** @var list<string> */
+    protected $hidden = ['password'];
+
+    public static function publicIdPrefix(): string
+    {
+        return 'usr';
+    }
 
     /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
+     * @return HasMany<Membership, $this>
      */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    public function memberships(): HasMany
+    {
+        return $this->hasMany(Membership::class);
+    }
 
     /**
-     * Get the attributes that should be cast.
-     *
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
