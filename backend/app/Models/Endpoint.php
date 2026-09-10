@@ -11,6 +11,7 @@ use Database\Factories\EndpointFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -49,6 +50,14 @@ final class Endpoint extends Model
     public function application(): BelongsTo
     {
         return $this->belongsTo(Application::class);
+    }
+
+    /**
+     * @return HasMany<EndpointSecret, $this>
+     */
+    public function secrets(): HasMany
+    {
+        return $this->hasMany(EndpointSecret::class);
     }
 
     /**
