@@ -48,6 +48,10 @@ jobs:
       DB_DATABASE: postbox_test
       DB_USERNAME: postbox
       DB_PASSWORD: postbox-ci-password
+      # The suite queries as the application role — the one Row Level Security
+      # applies to. The role is created by the first migration.
+      DB_APP_USERNAME: postbox_app
+      DB_APP_PASSWORD: postbox-ci-app-password
       REDIS_HOST: 127.0.0.1
       REDIS_PORT: 6379
       QUEUE_CONNECTION: redis

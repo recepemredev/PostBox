@@ -83,9 +83,12 @@ services:
       timeout: 3s
       retries: 12
 
+  # Migrations run as the owning role, on the connection reserved for them. Every
+  # other PHP service connects as the application role, which cannot create a
+  # table and cannot bypass Row Level Security.
   migrate:
     <<: *php
-    command: ["php", "artisan", "migrate", "--force"]
+    command: ["php", "artisan", "migrate", "--force", "--database=pgsql_admin"]
     depends_on: *datastores-ready
     restart: "no"
 
