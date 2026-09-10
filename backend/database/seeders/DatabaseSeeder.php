@@ -4,24 +4,24 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Actions\Tenancy\CreateTenant;
 use Illuminate\Database\Seeder;
 
-class DatabaseSeeder extends Seeder
+/**
+ * A tenant to sign in as while developing. It goes through the same action the
+ * console command uses, so the seeded instance and an operator-created one are
+ * the same shape — a seeder that assembled the rows itself would be a second
+ * definition of what a new tenant is.
+ */
+final class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
-    public function run(): void
+    public function run(CreateTenant $createTenant): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        $createTenant->handle(
+            'Acme Industries',
+            'Ada Lovelace',
+            'ada@acme.test',
+            'password',
+        );
     }
 }
