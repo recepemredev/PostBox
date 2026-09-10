@@ -61,6 +61,14 @@ final class Endpoint extends Model
     }
 
     /**
+     * @return HasMany<EndpointSubscription, $this>
+     */
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(EndpointSubscription::class);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
