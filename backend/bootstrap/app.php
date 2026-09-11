@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\AuthenticateApiKey;
+use App\Http\Middleware\EnforceLimits;
 use App\Http\Middleware\EstablishTenant;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -40,6 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant' => EstablishTenant::class,
             'api-key' => AuthenticateApiKey::class,
+            'governor' => EnforceLimits::class,
         ]);
 
         /*
@@ -49,9 +51,18 @@ return Application::configure(basePath: dirname(__DIR__))
          * like a routing mistake rather than an ordering one. Both are declared
          * relative to the framework's list rather than by restating it, so a
          * framework release that adds a middleware does not silently lose it.
+         *
+         * EnforceLimits is placed after AuthenticateApiKey for the same reason —
+         * it needs the tenant a key resolves to — and still ahead of
+         * SubstituteBindings: a request Governor is about to reject should not
+         * pay for a route model binding lookup it will never use. Calls to
+         * prependToPriorityList land in call order immediately ahead of
+         * SubstituteBindings, which is what keeps this one third rather than
+         * racing the first two for the same slot.
          */
         $middleware->prependToPriorityList(SubstituteBindings::class, EstablishTenant::class);
         $middleware->prependToPriorityList(SubstituteBindings::class, AuthenticateApiKey::class);
+        $middleware->prependToPriorityList(SubstituteBindings::class, EnforceLimits::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         /*

@@ -59,8 +59,12 @@ Route::prefix('v1')->middleware('dashboard')->group(function (): void {
  * token itself, which is why `api-key` sits ahead of SubstituteBindings in the
  * priority list: {application} resolves through the tenant scope, so another
  * tenant's application is a 404 rather than a 403.
+ *
+ * `governor` follows `api-key` for the tenant it needs, and precedes route
+ * model binding for the same reason `api-key` does: a request Governor is
+ * about to reject should not pay for a lookup it will never use.
  */
-Route::prefix('v1')->middleware('api-key')->group(function (): void {
+Route::prefix('v1')->middleware(['api-key', 'governor'])->group(function (): void {
     Route::post('apps/{application}/messages', [MessageController::class, 'store'])
         ->name('messages.store');
 });
