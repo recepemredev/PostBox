@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\Plan;
 use App\Models\Concerns\HasPublicId;
 use Database\Factories\TenantFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $public_id
  * @property string $name
+ * @property Plan $plan
  * @property Carbon $created_at
  * @property Carbon $updated_at
  */
@@ -28,7 +30,7 @@ final class Tenant extends Model
     use HasFactory, HasPublicId;
 
     /** @var list<string> */
-    protected $fillable = ['name'];
+    protected $fillable = ['name', 'plan'];
 
     public static function publicIdPrefix(): string
     {
@@ -41,5 +43,15 @@ final class Tenant extends Model
     public function memberships(): HasMany
     {
         return $this->hasMany(Membership::class);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'plan' => Plan::class,
+        ];
     }
 }

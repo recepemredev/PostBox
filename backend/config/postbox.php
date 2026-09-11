@@ -74,4 +74,29 @@ return [
         'batch_size' => (int) env('POSTBOX_OUTBOX_BATCH_SIZE', 500),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Governor
+    |--------------------------------------------------------------------------
+    |
+    | Two limits, kept genuinely separate. rate_limit is a token bucket:
+    | capacity is the burst a tenant can spend at once and refill_per_second is
+    | how fast it comes back. quota is cumulative and resets on the calendar
+    | month; messages_per_period is the ceiling for that period. Both are
+    | literals rather than env values, for the same reason max_payload_bytes is:
+    | a plan's numbers are a product decision, not a deployment knob.
+    |
+    */
+    'governor' => [
+        'rate_limit' => [
+            'free' => ['capacity' => 20, 'refill_per_second' => 10],
+            'pro' => ['capacity' => 200, 'refill_per_second' => 100],
+        ],
+
+        'quota' => [
+            'free' => ['messages_per_period' => 10_000],
+            'pro' => ['messages_per_period' => 1_000_000],
+        ],
+    ],
+
 ];

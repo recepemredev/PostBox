@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\Plan;
 use App\Models\Tenant;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -19,6 +20,15 @@ final class TenantFactory extends Factory
     {
         return [
             'name' => fake()->unique()->company(),
+            'plan' => Plan::Free,
         ];
+    }
+
+    /**
+     * @return Factory<Tenant>
+     */
+    public function pro(): Factory
+    {
+        return $this->state(['plan' => Plan::Pro]);
     }
 }
