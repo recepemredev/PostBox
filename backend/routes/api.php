@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\ApiKeyController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\MeController;
+use App\Http\Controllers\MessageController;
 use App\Http\Controllers\SessionController;
 use App\Models\ApiKey;
 use Illuminate\Support\Facades\Route;
@@ -49,4 +50,17 @@ Route::prefix('v1')->middleware('dashboard')->group(function (): void {
             ->can('delete', 'apiKey')
             ->name('api-keys.destroy');
     });
+});
+
+/*
+ * The ingest surface. A producer is a system rather than a person, so the
+ * credential is an API key and there is no session, no CSRF and no cookie —
+ * nothing here is reachable from a browser form. The tenant comes out of the
+ * token itself, which is why `api-key` sits ahead of SubstituteBindings in the
+ * priority list: {application} resolves through the tenant scope, so another
+ * tenant's application is a 404 rather than a 403.
+ */
+Route::prefix('v1')->middleware('api-key')->group(function (): void {
+    Route::post('apps/{application}/messages', [MessageController::class, 'store'])
+        ->name('messages.store');
 });

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\FormatsTimestamps;
 use App\Models\ApiKey;
-use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -18,6 +18,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 final class ApiKeyResource extends JsonResource
 {
+    use FormatsTimestamps;
+
     /**
      * @return array<string, string|null>
      */
@@ -32,13 +34,5 @@ final class ApiKeyResource extends JsonResource
             'revoked_at' => self::utc($this->resource->revoked_at),
             'created_at' => self::utc($this->resource->created_at),
         ];
-    }
-
-    /**
-     * Every timestamp this API emits is UTC and ISO-8601, with the Z spelled out.
-     */
-    private static function utc(?CarbonInterface $moment): ?string
-    {
-        return $moment?->utc()->toIso8601ZuluString();
     }
 }
