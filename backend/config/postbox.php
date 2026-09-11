@@ -52,4 +52,26 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Outbox
+    |--------------------------------------------------------------------------
+    |
+    | lease_seconds is how long a claimed delivery is held off the dispatcher's
+    | next pass. It is not a guess at how long a send takes — it is how long the
+    | system is willing to wait before assuming the worker that claimed it never
+    | ran, which is what turns "at-least-once" into something a crash cannot
+    | break. Too short and a slow delivery is sent twice; too long and a lost one
+    | waits. Five minutes is comfortably past any request timeout a delivery can
+    | have.
+    |
+    | batch_size bounds one pass, so a tenant with a large backlog cannot hold
+    | the dispatcher inside a single transaction while every other tenant waits.
+    |
+    */
+    'outbox' => [
+        'lease_seconds' => (int) env('POSTBOX_OUTBOX_LEASE_SECONDS', 300),
+        'batch_size' => (int) env('POSTBOX_OUTBOX_BATCH_SIZE', 500),
+    ],
+
 ];
