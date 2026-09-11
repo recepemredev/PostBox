@@ -6,6 +6,7 @@ use App\Models\Application;
 use App\Models\EventType;
 use App\Models\Message;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 
 /*
@@ -32,7 +33,14 @@ it('routes a message into the partition for the month it was created', function 
 });
 
 it('refuses a payload larger than the size cap', function (): void {
-    $oversized = str_repeat('a', 300_000);
+    /*
+     * Past the ceiling this table stores, which is twice the one the ingest
+     * endpoint advertises — the two measure different strings, so they are
+     * deliberately different numbers. Deriving the figure here rather than
+     * naming one keeps the test from quietly passing for the wrong reason the
+     * next time either ceiling moves.
+     */
+    $oversized = str_repeat('a', Config::integer('postbox.ingest.max_payload_bytes') * 2 + 1);
 
     expect(fn () => forTenant($this->acme, fn (): Message => Message::factory()->create([
         'payload' => ['blob' => $oversized],
