@@ -40,8 +40,9 @@ return new class extends Migration
             'UNIQUE (public_id, created_at), '.
             // 256 KiB. Step 4's ingest endpoint rejects an oversized payload
             // before it reaches this far; this is the backstop in the one place
-            // every write to this table must pass through. Step 4 reads the same
-            // figure from configuration and a test there holds the two equal.
+            // every write to this table must pass through. Step 4 raises this
+            // figure to twice the ceiling the endpoint advertises — the two
+            // measure different strings, and the later migration explains why.
             'CONSTRAINT messages_payload_size_check CHECK (octet_length(payload::text) <= 262144)'.
             ') PARTITION BY RANGE (created_at)'
         );
