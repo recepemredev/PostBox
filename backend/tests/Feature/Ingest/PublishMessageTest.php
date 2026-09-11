@@ -89,7 +89,7 @@ it('writes the message and its deliveries in one transaction', function (): void
     });
 });
 
-it('returns the accepted message and nothing about its deliveries', function (): void {
+it('returns a receipt, and nothing about the payload or the deliveries', function (): void {
     $response = publishEvent(invoicePaid());
 
     $message = forTenant($this->acme, fn (): Message => Message::query()->sole());
@@ -97,11 +97,11 @@ it('returns the accepted message and nothing about its deliveries', function ():
     $response->assertCreated()->assertExactJson([
         'id' => $message->public_id,
         'event_type' => 'invoice.paid',
-        'payload' => ['total' => 4200],
         'created_at' => $message->created_at->utc()->toIso8601ZuluString(),
     ]);
 
-    expect($message->public_id)->toStartWith('msg_');
+    expect($message->public_id)->toStartWith('msg_')
+        ->and($message->payload)->toBe(['total' => 4200]);
 });
 
 it('rejects an event type that is not registered', function (): void {

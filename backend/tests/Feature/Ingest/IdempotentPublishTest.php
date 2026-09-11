@@ -39,9 +39,12 @@ it('returns the original message and writes nothing on a replay', function (): v
     $first = publishWithKey('req-001')->assertCreated();
     $replay = publishWithKey('req-001');
 
-    $replay->assertOk()
-        ->assertHeader('Idempotent-Replay', 'true')
-        ->assertExactJson($first->json());
+    $replay->assertOk()->assertHeader('Idempotent-Replay', 'true');
+
+    // Byte for byte, not merely equivalent. Comparing the decoded bodies would
+    // accept two spellings of the same document, which is exactly the mistake
+    // that let a reordered payload through until it was found by hand.
+    expect($replay->getContent())->toBe($first->getContent());
 
     forTenant($this->acme, function (): void {
         expect(Message::query()->count())->toBe(1)
