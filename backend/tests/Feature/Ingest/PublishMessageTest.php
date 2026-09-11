@@ -6,12 +6,10 @@ use App\Enums\DeliveryStatus;
 use App\Models\Application;
 use App\Models\Delivery;
 use App\Models\Endpoint;
-use App\Models\EndpointSubscription;
 use App\Models\EventType;
 use App\Models\Message;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
-use Tests\TestCase;
 
 /*
  * The ingest endpoint, up to but not including idempotency. What is being
@@ -24,44 +22,8 @@ beforeEach(function (): void {
     $this->globex = tenantNamed('Globex');
     $this->token = issueKeyFor($this->acme, memberOf($this->acme))->token;
 
-    forTenant($this->acme, function (): void {
-        $this->application = Application::factory()->create();
-        $this->eventType = EventType::factory()->create(['name' => 'invoice.paid']);
-    });
+    [$this->application, $this->eventType] = registerProducer($this->acme);
 });
-
-function publishEvent(array $body, ?string $token = null, ?string $applicationId = null): TestResponse
-{
-    /** @var TestCase $test */
-    $test = test();
-
-    return $test
-        ->withToken($token ?? $test->token)
-        ->postJson('/api/v1/apps/'.($applicationId ?? $test->application->public_id).'/messages', $body);
-}
-
-/**
- * An endpoint of the given application, subscribed to the given event type.
- */
-function subscribedEndpoint(Application $application, EventType $eventType, bool $enabled = true): Endpoint
-{
-    $factory = Endpoint::factory();
-
-    $endpoint = ($enabled ? $factory : $factory->disabled())
-        ->create(['application_id' => $application->id]);
-
-    EndpointSubscription::factory()->create([
-        'endpoint_id' => $endpoint->id,
-        'event_type_id' => $eventType->id,
-    ]);
-
-    return $endpoint;
-}
-
-function invoicePaid(): array
-{
-    return ['event_type' => 'invoice.paid', 'payload' => ['total' => 4200]];
-}
 
 it('opens one delivery per subscribed and enabled endpoint', function (): void {
     forTenant($this->acme, function (): void {

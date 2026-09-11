@@ -5,6 +5,10 @@ declare(strict_types=1);
 use App\Actions\Health\CheckSystemHealth;
 use App\Actions\Identity\IssueApiKey;
 use App\Enums\RoleSlug;
+use App\Models\Application;
+use App\Models\Endpoint;
+use App\Models\EndpointSubscription;
+use App\Models\EventType;
 use App\Models\Membership;
 use App\Models\Tenant;
 use App\Models\User;
@@ -166,4 +170,73 @@ function memberOf(Tenant $tenant, RoleSlug $role = RoleSlug::Admin): User
 function issueKeyFor(Tenant $tenant, User $creator, ?CarbonImmutable $expiresAt = null): IssuedApiKey
 {
     return forTenant($tenant, static fn (): IssuedApiKey => app(IssueApiKey::class)->handle('deploy', $creator, $expiresAt));
+}
+
+/*
+|--------------------------------------------------------------------------
+| Ingest
+|--------------------------------------------------------------------------
+|
+| A producer needs three things before it can publish: a credential, an
+| application to publish into, and a registered event type. The helpers below
+| build exactly that, and send the request the way a producer would.
+|
+*/
+
+/**
+ * An application and one registered event type, under the given tenant.
+ *
+ * @return array{Application, EventType}
+ */
+function registerProducer(Tenant $tenant, string $eventType = 'invoice.paid'): array
+{
+    return forTenant($tenant, fn (): array => [
+        Application::factory()->create(),
+        EventType::factory()->create(['name' => $eventType]),
+    ]);
+}
+
+/**
+ * An endpoint of the given application, subscribed to the given event type.
+ */
+function subscribedEndpoint(Application $application, EventType $eventType, bool $enabled = true): Endpoint
+{
+    $factory = Endpoint::factory();
+
+    $endpoint = ($enabled ? $factory : $factory->disabled())
+        ->create(['application_id' => $application->id]);
+
+    EndpointSubscription::factory()->create([
+        'endpoint_id' => $endpoint->id,
+        'event_type_id' => $eventType->id,
+    ]);
+
+    return $endpoint;
+}
+
+/**
+ * The body every ingest test sends unless it is testing the body itself.
+ *
+ * @return array<string, mixed>
+ */
+function invoicePaid(): array
+{
+    return ['event_type' => 'invoice.paid', 'payload' => ['total' => 4200]];
+}
+
+/**
+ * Publishes as a producer would: an API key, and the application in the path.
+ * The token and the application default to the ones the test established.
+ *
+ * @param  array<string, mixed>  $body
+ * @param  array<string, string>  $headers
+ */
+function publishEvent(array $body, ?string $token = null, ?string $applicationId = null, array $headers = []): TestResponse
+{
+    /** @var TestCase $test */
+    $test = test();
+
+    return $test
+        ->withToken($token ?? $test->token)
+        ->postJson('/api/v1/apps/'.($applicationId ?? $test->application->public_id).'/messages', $body, $headers);
 }

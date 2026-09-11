@@ -36,6 +36,39 @@ final class PublishMessageRequest extends FormRequest
             'event_type' => ['required', 'string', 'exists:event_types,name'],
 
             'payload' => ['required', 'array', new WithinPayloadCeiling],
+
+            /*
+             * Optional: a producer that does not care about replaying is not made
+             * to invent a key. Bounded by what the column holds, and confined to
+             * visible ASCII so nothing a producer chooses can put a control
+             * character into storage or into a log line.
+             */
+            'idempotency_key' => ['nullable', 'string', 'max:255', 'regex:/^[\x21-\x7e]+$/'],
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return ['idempotency_key' => 'Idempotency-Key header'];
+    }
+
+    public function idempotencyKey(): ?string
+    {
+        return $this->filled('idempotency_key')
+            ? $this->string('idempotency_key')->value()
+            : null;
+    }
+
+    /**
+     * The key travels as a header and validation reads input, so it is put where
+     * the rules can see it. Merging also overwrites anything a producer sent in
+     * the body under that name: there is one place this value comes from.
+     */
+    protected function prepareForValidation(): void
+    {
+        $this->merge(['idempotency_key' => $this->header('Idempotency-Key')]);
     }
 }

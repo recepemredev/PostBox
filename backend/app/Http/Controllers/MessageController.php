@@ -17,20 +17,26 @@ final class MessageController extends Controller
      * The application is resolved through the tenant scope by route model
      * binding, so one belonging to another tenant is answered with 404 and never
      * reaches this method.
+     *
+     * A replay answers 200 rather than 201, with a header saying so: the body is
+     * the original message, byte for byte, and nothing was created to produce it.
      */
     public function store(
         PublishMessageRequest $request,
         Application $application,
         PublishMessage $publish,
     ): JsonResponse {
-        $message = $publish->handle(
+        $published = $publish->handle(
             $application,
             $request->string('event_type')->value(),
             $request->array('payload'),
+            $request->idempotencyKey(),
         );
 
-        return MessageResource::make($message)
-            ->response($request)
-            ->setStatusCode(Status::HTTP_CREATED);
+        $response = MessageResource::make($published->message)->response($request);
+
+        return $published->replayed
+            ? $response->setStatusCode(Status::HTTP_OK)->withHeaders(['Idempotent-Replay' => 'true'])
+            : $response->setStatusCode(Status::HTTP_CREATED);
     }
 }
