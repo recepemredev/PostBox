@@ -198,13 +198,29 @@ function registerProducer(Tenant $tenant, string $eventType = 'invoice.paid'): a
 
 /**
  * An endpoint of the given application, subscribed to the given event type.
+ *
+ * $url defaults to Faker's random one, which is fine for the ingest and
+ * outbox tests that only need an endpoint to exist. A test that actually
+ * sends to it (Delivery) has to pin this: Faker's domains are not resolvable
+ * addresses, and AddressGuard resolves for real rather than through a
+ * double in that whole test group, so a random hostname is a random,
+ * network-dependent outcome instead of a deterministic one.
  */
-function subscribedEndpoint(Application $application, EventType $eventType, bool $enabled = true): Endpoint
-{
+function subscribedEndpoint(
+    Application $application,
+    EventType $eventType,
+    bool $enabled = true,
+    ?string $url = null,
+): Endpoint {
     $factory = Endpoint::factory();
 
-    $endpoint = ($enabled ? $factory : $factory->disabled())
-        ->create(['application_id' => $application->id]);
+    $attributes = ['application_id' => $application->id];
+
+    if ($url !== null) {
+        $attributes['url'] = $url;
+    }
+
+    $endpoint = ($enabled ? $factory : $factory->disabled())->create($attributes);
 
     EndpointSubscription::factory()->create([
         'endpoint_id' => $endpoint->id,
