@@ -41,7 +41,6 @@ jobs:
 
     env:
       APP_ENV: testing
-      APP_KEY: base64:Zm9yLWNpLW9ubHktbm90LWEtcmVhbC1zZWNyZXQtMDAwMDA=
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
@@ -83,6 +82,14 @@ jobs:
         # Configuration comes from the job environment above. Dotenv reads this
         # path unconditionally and reports the failed read as a test warning.
         run: touch .env
+
+      - name: Generate the test APP_KEY
+        # Only the key's length is significant here: no test asserts a ciphertext,
+        # and the cipher's IV is random regardless. Letting the framework produce
+        # the key means a value of the wrong length for the configured cipher
+        # cannot be committed — which is how AES-256-CBC was handed a 35-byte key
+        # and every encrypting test failed on the first run CI ever performed (D35).
+        run: echo "APP_KEY=$(php artisan key:generate --show)" >> "$GITHUB_ENV"
 
       - name: Pint
         run: vendor/bin/pint --test
