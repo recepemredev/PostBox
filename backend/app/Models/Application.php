@@ -45,4 +45,12 @@ final class Application extends Model
     {
         return $this->hasMany(Endpoint::class);
     }
+
+    /**
+     * @return HasMany<Message, $this>
+     */
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class);
+    }
 }
