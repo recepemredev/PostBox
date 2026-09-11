@@ -97,11 +97,23 @@ services:
     healthcheck: *php-healthcheck
 
   # Stateless and horizontally scalable: no host port, no local state, no fixed
-  # container name. `--scale worker=5` is a supported operation, verified in
-  # Step 11. Horizon replaces the bare worker in Step 6.
-  worker:
+  # container name. `--scale worker-deliveries=5` is a supported operation,
+  # verified in Step 11. Each service runs Horizon under the environment name
+  # that selects its own supervisor and its own queue (config/horizon.php), so
+  # scaling one queue's capacity never touches the other two.
+  worker-deliveries:
     <<: *php
-    command: ["php", "artisan", "queue:work", "--tries=1", "--max-time=3600"]
+    command: ["php", "artisan", "horizon", "--environment=deliveries"]
+    healthcheck: *php-healthcheck
+
+  worker-retries:
+    <<: *php
+    command: ["php", "artisan", "horizon", "--environment=retries"]
+    healthcheck: *php-healthcheck
+
+  worker-maintenance:
+    <<: *php
+    command: ["php", "artisan", "horizon", "--environment=maintenance"]
     healthcheck: *php-healthcheck
 
   # Singleton. A second scheduler would double every periodic dispatch, so the

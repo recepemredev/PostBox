@@ -25,15 +25,16 @@ fi
 
 echo "  ok  --scale scheduler=2 was rejected"
 
-# The counterpart: the worker carries none of those constraints and must scale.
+# The counterpart: the workers carry none of those constraints and must scale.
 # An assertion that only proves the scheduler refuses would also pass if the
-# whole topology refused.
-if ! "${COMPOSE[@]}" up --no-start --scale worker=3 >/dev/null 2>&1; then
-    echo "FAIL: the worker refused --scale worker=3" >&2
+# whole topology refused. One of the three stands in for all — they share the
+# same *php anchor and differ only in which Horizon environment they start.
+if ! "${COMPOSE[@]}" up --no-start --scale worker-deliveries=3 >/dev/null 2>&1; then
+    echo "FAIL: the worker refused --scale worker-deliveries=3" >&2
     exit 1
 fi
 
-echo "  ok  --scale worker=3 was accepted"
+echo "  ok  --scale worker-deliveries=3 was accepted"
 
 # The runtime refusal above is the real assertion; these confirm the two topology
 # properties that produce it, so a future edit that removes one is caught here

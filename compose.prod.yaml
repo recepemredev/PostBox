@@ -36,7 +36,11 @@ services:
 
   backend: *prod-php
 
-  worker: *prod-php
+  worker-deliveries: *prod-php
+
+  worker-retries: *prod-php
+
+  worker-maintenance: *prod-php
 
   scheduler: *prod-php
 

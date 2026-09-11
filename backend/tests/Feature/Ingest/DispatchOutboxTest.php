@@ -50,7 +50,11 @@ it('hands a due delivery to the queue', function (): void {
     Queue::assertPushed(
         SendDelivery::class,
         fn (SendDelivery $job): bool => $job->deliveryId === $delivery->public_id
-            && $job->tenantId === $this->acme->public_id,
+            && $job->tenantId === $this->acme->public_id
+            // The worker-deliveries supervisor is the only one draining this
+            // queue (config/horizon.php); a job that landed anywhere else
+            // would sit unprocessed rather than merely delayed.
+            && $job->queue === 'deliveries',
     );
     Queue::assertPushed(SendDelivery::class, 1);
 });
