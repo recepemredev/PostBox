@@ -5,19 +5,12 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Actions\Ingest\DispatchOutbox;
-use App\Models\Tenant;
-use App\Support\Tenancy\TenantContext;
+use App\Actions\Tenancy\RunForEachTenant;
 use Illuminate\Console\Command;
 
 /**
- * Runs the outbox dispatcher across every tenant.
- *
- * The loop is not an implementation detail to be optimised away later. Row Level
- * Security is declared FORCE and every policy compares a row against the tenant
- * that is current, so there is no connection and no role on which "every pending
- * delivery, everywhere" is a query that can be written. Background work that
- * spans tenants therefore spans them one at a time, through the same context a
- * request establishes.
+ * Runs the outbox dispatcher across every tenant. Why that is a loop rather than
+ * one query is written down where the loop lives.
  */
 final class DispatchOutboxCommand extends Command
 {
@@ -25,15 +18,9 @@ final class DispatchOutboxCommand extends Command
 
     protected $description = 'Claim due deliveries from the outbox and hand them to the queue.';
 
-    public function handle(TenantContext $context, DispatchOutbox $dispatch): int
+    public function handle(RunForEachTenant $tenants, DispatchOutbox $dispatch): int
     {
-        $dispatched = 0;
-
-        Tenant::query()->orderBy('id')->each(
-            function (Tenant $tenant) use ($context, $dispatch, &$dispatched): void {
-                $dispatched += $context->runFor($tenant, fn (): int => $dispatch->handle());
-            },
-        );
+        $dispatched = $tenants->handle(fn (): int => $dispatch->handle());
 
         $this->info("outbox: {$dispatched} deliveries dispatched.");
 

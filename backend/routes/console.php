@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Console\Commands\DispatchOutboxCommand;
 use App\Console\Commands\EnsurePartitionsCommand;
+use App\Console\Commands\PruneIdempotencyKeysCommand;
 use Illuminate\Support\Facades\Schedule;
 
 /*
@@ -26,3 +27,10 @@ Schedule::command(EnsurePartitionsCommand::class)->daily()->withoutOverlapping()
  * is here to keep a slow pass from stacking passes behind it.
  */
 Schedule::command(DispatchOutboxCommand::class)->everyMinute()->withoutOverlapping();
+
+/*
+ * Expiry is a deletion, not a predicate, so how promptly this runs is how
+ * promptly a spent key becomes reusable. Hourly keeps that boundary close to
+ * the configured lifetime instead of up to a day past it.
+ */
+Schedule::command(PruneIdempotencyKeysCommand::class)->hourly()->withoutOverlapping();
