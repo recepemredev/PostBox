@@ -69,6 +69,14 @@ final class Endpoint extends Model
     }
 
     /**
+     * @return HasMany<Delivery, $this>
+     */
+    public function deliveries(): HasMany
+    {
+        return $this->hasMany(Delivery::class);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
