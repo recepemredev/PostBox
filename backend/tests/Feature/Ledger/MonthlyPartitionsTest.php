@@ -42,3 +42,27 @@ it('creates the given month and the number of months asked for ahead of it', fun
 
     expect($found)->toBe(3);
 });
+
+it('drops a partition older than the cutoff and leaves the rest alone', function (): void {
+    MonthlyPartitions::createFor('messages', CarbonImmutable::create(2033, 1, 1));
+    MonthlyPartitions::createFor('messages', CarbonImmutable::create(2033, 6, 1));
+
+    MonthlyPartitions::prune('messages', CarbonImmutable::create(2033, 4, 1));
+
+    $remaining = DB::table('pg_class')
+        ->whereIn('relname', ['messages_2033_01', 'messages_2033_06'])
+        ->pluck('relname')
+        ->all();
+
+    expect($remaining)->toBe(['messages_2033_06']);
+});
+
+it('leaves a partition exactly at the cutoff month alone', function (): void {
+    MonthlyPartitions::createFor('messages', CarbonImmutable::create(2034, 3, 1));
+
+    MonthlyPartitions::prune('messages', CarbonImmutable::create(2034, 3, 15));
+
+    $exists = DB::table('pg_class')->where('relname', 'messages_2034_03')->exists();
+
+    expect($exists)->toBeTrue();
+});

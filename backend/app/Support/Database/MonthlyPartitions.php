@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Database;
 
 use App\Support\Tenancy\RowLevelSecurity;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
@@ -48,9 +49,71 @@ final class MonthlyPartitions
         );
     }
 
+    /**
+     * Drops every partition of $table whose month is strictly before $before.
+     * The current month is never a candidate unless $before is itself pushed
+     * into the future, which is a misconfiguration this does not guard
+     * against — the retention figure is a deployment constant, not input.
+     */
+    public static function prune(string $table, CarbonInterface $before): void
+    {
+        $cutoff = $before->copy()->startOfMonth();
+
+        foreach (self::partitionsOf($table) as $name => $month) {
+            if ($month->lt($cutoff)) {
+                DB::connection('pgsql_admin')->statement('DROP TABLE IF EXISTS '.RowLevelSecurity::quote($name));
+            }
+        }
+    }
+
     public static function partitionName(string $table, CarbonInterface $month): string
     {
         return sprintf('%s_%s', $table, $month->format('Y_m'));
+    }
+
+    /**
+     * The partitions $table actually has right now, keyed by name, each
+     * resolved back to the month it covers.
+     *
+     * @return array<string, CarbonImmutable>
+     */
+    private static function partitionsOf(string $table): array
+    {
+        /** @var list<object{name: string}> $rows */
+        $rows = DB::connection('pgsql_admin')->select(
+            'select child.relname as name '.
+            'from pg_inherits '.
+            'join pg_class parent on pg_inherits.inhparent = parent.oid '.
+            'join pg_class child on pg_inherits.inhrelid = child.oid '.
+            'where parent.relname = ?',
+            [$table]
+        );
+
+        /** @var array<string, CarbonImmutable> $months */
+        $months = [];
+
+        foreach ($rows as $row) {
+            $month = self::monthFromPartitionName($table, $row->name);
+
+            if ($month instanceof CarbonImmutable) {
+                $months[$row->name] = $month;
+            }
+        }
+
+        return $months;
+    }
+
+    private static function monthFromPartitionName(string $table, string $partitionName): ?CarbonImmutable
+    {
+        $prefix = $table.'_';
+
+        if (! str_starts_with($partitionName, $prefix)) {
+            return null;
+        }
+
+        $parsed = CarbonImmutable::createFromFormat('Y_m', substr($partitionName, strlen($prefix)));
+
+        return $parsed instanceof CarbonImmutable ? $parsed->startOfMonth() : null;
     }
 
     private static function quoteBound(CarbonInterface $point): string
