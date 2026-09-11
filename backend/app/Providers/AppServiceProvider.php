@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Support\Delivery\GuzzleTransport;
+use App\Support\Delivery\HttpTransport;
 use App\Support\Identity\Permissions;
 use App\Support\Tenancy\TenantContext;
+use GuzzleHttp\Client;
+use GuzzleHttp\ClientInterface;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Contracts\Auth\StatefulGuard;
@@ -43,6 +47,16 @@ final class AppServiceProvider extends ServiceProvider
                 return $guard;
             },
         );
+
+        /*
+         * The outbound transport, one of the two pre-approved boundary
+         * interfaces. GuzzleTransport is curl-specific — CURLOPT_RESOLVE is
+         * what lets AddressGuard's pinned address actually get used — so its
+         * own collaborator is Guzzle's client contract, not a second layer of
+         * indirection over it.
+         */
+        $this->app->singleton(ClientInterface::class, static fn (): ClientInterface => new Client);
+        $this->app->bind(HttpTransport::class, GuzzleTransport::class);
     }
 
     public function boot(): void
