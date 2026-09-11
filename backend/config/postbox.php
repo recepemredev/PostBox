@@ -27,4 +27,29 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Ingest
+    |--------------------------------------------------------------------------
+    |
+    | max_payload_bytes is 256 KiB, and it is a literal rather than an env
+    | value on purpose: the same ceiling is a CHECK constraint on
+    | messages.payload, and a figure the environment could move would drift away
+    | from a figure the schema cannot. A test asserts the two are equal, which
+    | is only worth asserting while both are fixed.
+    |
+    | idempotency.ttl_hours is how long a spent key stays reserved. Past it the
+    | key is prunable and a producer replaying it gets a new message rather than
+    | the original — long enough to cover any retry a client is still making,
+    | short enough that the table does not grow with the message log.
+    |
+    */
+    'ingest' => [
+        'max_payload_bytes' => 262144,
+
+        'idempotency' => [
+            'ttl_hours' => (int) env('POSTBOX_IDEMPOTENCY_TTL_HOURS', 24),
+        ],
+    ],
+
 ];
