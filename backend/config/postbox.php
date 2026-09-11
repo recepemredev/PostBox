@@ -99,4 +99,58 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Delivery
+    |--------------------------------------------------------------------------
+    |
+    | connect_timeout_ms and timeout_ms are env values, not literals: unlike a
+    | plan's numbers, how long this deployment is willing to wait on a
+    | customer's server is an operational knob, not a product decision.
+    | config/horizon.php reads the same POSTBOX_DELIVERY_TIMEOUT_MS to size a
+    | worker's own timeout past it, so the two cannot drift by editing one.
+    |
+    | max_recorded_body_bytes is the same 256 KiB ceiling
+    | delivery_attempts.request_body and .response_body hold themselves to at
+    | the database (Step 3) — recording more than the row will accept would be
+    | truncated a second time, silently, by the CHECK constraint instead of
+    | deliberately, by this cap.
+    |
+    | scrubbed_headers never reach a stored attempt. Comparison is
+    | case-insensitive; PostBox-Signature is not in this list; a signature is
+    | derived, not secret, and Step 14's inspector needs it to explain a
+    | consumer's "the signature didn't verify" report.
+    |
+    */
+    'delivery' => [
+        'queue' => env('POSTBOX_DELIVERY_QUEUE', 'deliveries'),
+
+        'connect_timeout_ms' => (int) env('POSTBOX_DELIVERY_CONNECT_TIMEOUT_MS', 5000),
+        'timeout_ms' => (int) env('POSTBOX_DELIVERY_TIMEOUT_MS', 15000),
+
+        'max_recorded_body_bytes' => 262144,
+
+        'scrubbed_headers' => [
+            'authorization',
+            'cookie',
+            'set-cookie',
+            'proxy-authorization',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Signing
+    |--------------------------------------------------------------------------
+    |
+    | tolerance_seconds bounds how far a signed timestamp may drift from the
+    | verifying clock, in either direction, before the signature is refused —
+    | wide enough to absorb ordinary clock skew, narrow enough that a captured
+    | request cannot be replayed long after the fact.
+    |
+    */
+    'signing' => [
+        'tolerance_seconds' => (int) env('POSTBOX_SIGNATURE_TOLERANCE_SECONDS', 300),
+    ],
+
 ];

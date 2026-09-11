@@ -53,4 +53,15 @@ final class DeliveryAttemptFactory extends Factory
             'response_body' => '{"error":"server_error"}',
         ]);
     }
+
+    public function blocked(): self
+    {
+        return $this->state(fn (): array => [
+            'outcome' => AttemptOutcome::Blocked,
+            'response_status' => null,
+            'response_headers' => null,
+            'response_body' => null,
+            'error_message' => 'The target address resolves to a disallowed range.',
+        ]);
+    }
 }

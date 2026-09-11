@@ -61,6 +61,20 @@ it('refuses a network failure recorded with a response status', function (): voi
         ->toThrow(QueryException::class);
 });
 
+it('accepts a blocked outcome with no response status', function (): void {
+    $attempt = forTenant($this->tenant, fn (): DeliveryAttempt => DeliveryAttempt::factory()->blocked()->create());
+
+    expect($attempt->outcome)->toBe(AttemptOutcome::Blocked)
+        ->and($attempt->response_status)->toBeNull();
+});
+
+it('refuses a blocked outcome recorded with a response status', function (): void {
+    expect(fn () => forTenant($this->tenant, fn (): DeliveryAttempt => DeliveryAttempt::factory()
+        ->blocked()
+        ->create(['response_status' => 200])))
+        ->toThrow(QueryException::class);
+});
+
 it('refuses a request body larger than the size cap', function (): void {
     $oversized = str_repeat('a', 300_000);
 
