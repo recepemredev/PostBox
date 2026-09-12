@@ -5,7 +5,7 @@
 # invocations, so the behaviour lives in the compose files rather than here.
 # CI asserts that the two files expose the same targets.
 #
-# TARGETS: up down fresh logs test stan format check prod-up prod-down bench help
+# TARGETS: up down fresh logs test stan format check ci prod-up prod-down bench help
 
 [CmdletBinding()]
 param(
@@ -42,6 +42,25 @@ function Invoke-Step {
     if ($LASTEXITCODE -ne 0) {
         throw "command failed with exit code ${LASTEXITCODE}: $($Command -join ' ')"
     }
+}
+
+function Resolve-Bash {
+    # The CI assertion scripts are POSIX, and Windows' own `bash` on PATH is the
+    # WSL stub: a different filesystem and a different docker, when a distribution
+    # is installed at all. Git Bash is the shell that can run them against the
+    # host's docker, and a checkout already requires Git — so Git's own location
+    # is where to look, rather than a hard-coded install path.
+    $git = Get-Command git -ErrorAction SilentlyContinue
+
+    if ($git) {
+        $candidate = Join-Path (Split-Path (Split-Path $git.Source -Parent) -Parent) 'bin/bash.exe'
+
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    throw 'ci: Git Bash was not found. The assertion scripts are POSIX — install Git for Windows, or run `make ci` on Linux.'
 }
 
 function Initialize-Environment {
@@ -126,6 +145,44 @@ switch ($Target) {
         Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'frontend', 'npm', 'run', 'build'))
     }
 
+    'ci' {
+        # Every gate the workflow runs, in one command and in the workflow's order.
+        #
+        # `check`, `test`, `prod-up` and `prod-down` are invoked rather than
+        # repeated, so the gate cannot drift from the targets it is made of. What
+        # this adds is the four assertions that until now existed only inside the
+        # workflow — target parity, the absent baseline, the production image
+        # contents and the scheduler singleton — plus the two lock files, which CI
+        # installs from and a working tree never re-reads.
+        #
+        # The scheduler assertion tears the compose project down. This is a
+        # pre-push gate, not something to run beside a live development stack.
+        Initialize-Environment
+        $bash = Resolve-Bash
+
+        Invoke-Step @($bash, 'docker/scripts/assert-target-parity.sh')
+
+        if (Test-Path 'backend/phpstan-baseline.neon') {
+            throw 'FAIL: backend/phpstan-baseline.neon exists — D5 forbids a baseline'
+        }
+        Write-Host '  ok  no phpstan baseline' -ForegroundColor DarkGray
+
+        Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'backend', 'composer', 'validate', '--strict'))
+        Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'frontend', 'npm', 'ci', '--dry-run', '--no-audit', '--no-fund'))
+
+        & $PSCommandPath check
+        & $PSCommandPath test
+
+        Invoke-Step ($Prod + @('build'))
+        Invoke-Step @($bash, 'docker/scripts/assert-production-images.sh')
+        Invoke-Step @($bash, 'docker/scripts/assert-scheduler-singleton.sh')
+
+        & $PSCommandPath prod-up
+        & $PSCommandPath prod-down
+
+        Write-Host 'ci: every gate the workflow runs passed locally' -ForegroundColor Green
+    }
+
     'prod-up' {
         Initialize-Environment
         Invoke-Step ($Prod + @('up', '-d', '--build'))
@@ -154,6 +211,7 @@ PostBox task runner
   .\task.ps1 stan        run Larastan at max
   .\task.ps1 format      rewrite the backend to the Pint style
   .\task.ps1 check       Pint, Larastan, ESLint, tsc and next build
+  .\task.ps1 ci          every gate the workflow runs — the pre-push check
   .\task.ps1 prod-up     build and start the production profile, then assert health
   .\task.ps1 prod-down   stop the production profile
   .\task.ps1 bench       run the benchmark protocol (Step 10)

@@ -3,8 +3,8 @@
 # invocations, so the behaviour lives in the compose files rather than here.
 # CI asserts that the two files expose the same targets.
 
-# TARGETS: up down fresh logs test stan format check prod-up prod-down bench help
-.PHONY: up down fresh logs test stan format check prod-up prod-down bench help
+# TARGETS: up down fresh logs test stan format check ci prod-up prod-down bench help
+.PHONY: up down fresh logs test stan format check ci prod-up prod-down bench help
 .DEFAULT_GOAL := help
 
 DEV  := docker compose --profile dev
@@ -66,6 +66,33 @@ check:
 	$(DEV) run --rm --no-deps frontend npm run typecheck
 	$(DEV) run --rm --no-deps frontend npm run build
 
+# Every gate the workflow runs, in one command and in the workflow's order.
+#
+# `check`, `test`, `prod-up` and `prod-down` are called rather than repeated, so
+# the gate cannot drift from the targets it is made of. What this adds is the four
+# assertions that until now existed only inside the workflow — target parity, the
+# absent baseline, the production image contents and the scheduler singleton — plus
+# the two lock files, which CI installs from and a working tree never re-reads.
+#
+# The scheduler assertion tears the compose project down. This is a pre-push gate,
+# not something to run beside a live development stack.
+ci:
+	$(ensure_env)
+	bash docker/scripts/assert-target-parity.sh
+	@test ! -f backend/phpstan-baseline.neon \
+		|| ( echo "FAIL: backend/phpstan-baseline.neon exists — D5 forbids a baseline" >&2; exit 1 )
+	@echo "  ok  no phpstan baseline"
+	$(DEV) run --rm --no-deps backend composer validate --strict
+	$(DEV) run --rm --no-deps frontend npm ci --dry-run --no-audit --no-fund
+	$(MAKE) check
+	$(MAKE) test
+	$(PROD) build
+	bash docker/scripts/assert-production-images.sh
+	bash docker/scripts/assert-scheduler-singleton.sh
+	$(MAKE) prod-up
+	$(MAKE) prod-down
+	@echo "ci: every gate the workflow runs passed locally"
+
 prod-up:
 	$(ensure_env)
 	$(PROD) up -d --build
@@ -90,6 +117,7 @@ help:
 	@echo "  make stan        run Larastan at max"
 	@echo "  make format      rewrite the backend to the Pint style"
 	@echo "  make check       Pint, Larastan, ESLint, tsc and next build"
+	@echo "  make ci          every gate the workflow runs — the pre-push check"
 	@echo "  make prod-up     build and start the production profile, then assert health"
 	@echo "  make prod-down   stop the production profile"
 	@echo "  make bench       run the benchmark protocol (Step 10)"
