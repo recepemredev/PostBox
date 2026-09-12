@@ -35,7 +35,14 @@ class HostResolver
             return [$host];
         }
 
-        $records = dns_get_record($host, DNS_A + DNS_AAAA);
+        // A host malformed enough that there is nothing to ask DNS about makes
+        // dns_get_record raise a PHP warning, which Laravel turns into an
+        // ErrorException. This method promises a list of addresses, and its one
+        // caller is the SSRF guard on the delivery path, where AttemptDelivery
+        // catches BlockedTarget and nothing else — an exception escaping here is
+        // a delivery attempt that never gets recorded. The failure is already in
+        // the return value, so the warning is suppressed and read from there.
+        $records = @dns_get_record($host, DNS_A + DNS_AAAA);
 
         if ($records === false) {
             return [];

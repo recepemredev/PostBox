@@ -20,8 +20,17 @@ beforeEach(function (): void {
     $this->guard = new AddressGuard(new HostResolver);
 });
 
+/*
+ * The message is asserted, not only the class. Both the range check and the
+ * unresolvable branch throw BlockedTarget, so a class-only assertion passed
+ * for every IPv6 literal here while the range check was never reached at all:
+ * parse_url leaves an IPv6 host bracketed, and `[::1]` went to DNS instead of
+ * being recognised as an address. Pinning the reason is what makes this
+ * dataset an assertion about the ranges rather than about refusal in general.
+ */
 it('refuses a disallowed address', function (string $url): void {
-    expect(fn () => $this->guard->guard($url))->toThrow(BlockedTarget::class);
+    expect(fn () => $this->guard->guard($url))
+        ->toThrow(BlockedTarget::class, 'resolves to a disallowed range');
 })->with([
     'loopback (IPv4)' => 'http://127.0.0.1/webhook',
     'loopback, non-default port' => 'http://127.0.0.1:8080/webhook',
@@ -45,6 +54,20 @@ it('allows a public address', function (): void {
 
     expect($target->host)->toBe('8.8.8.8')
         ->and($target->address)->toBe('8.8.8.8')
+        ->and($target->port)->toBe(9443);
+});
+
+/*
+ * The counterpart to the bracket fix: nothing proved a public IPv6 endpoint
+ * was reachable at all, so the guard could have refused every one of them and
+ * the suite would have stayed green. The host is pinned unbracketed because
+ * that is the form curl matches CURLOPT_RESOLVE against.
+ */
+it('allows a public IPv6 address and pins it unbracketed', function (): void {
+    $target = $this->guard->guard('http://[2001:4860:4860::8888]:9443/webhook');
+
+    expect($target->host)->toBe('2001:4860:4860::8888')
+        ->and($target->address)->toBe('2001:4860:4860::8888')
         ->and($target->port)->toBe(9443);
 });
 

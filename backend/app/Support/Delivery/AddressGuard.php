@@ -45,7 +45,7 @@ final readonly class AddressGuard
         '::/128',          // unspecified
         '::ffff:0:0/96',   // IPv4-mapped — refused outright, never unwrapped and re-checked
         'fc00::/7',        // unique local — IPv6's private range
-        'fe80::/10',        // link-local
+        'fe80::/10',       // link-local
         'ff00::/8',        // multicast
     ];
 
@@ -62,7 +62,7 @@ final readonly class AddressGuard
             throw BlockedTarget::invalidUrl($url);
         }
 
-        $host = $parts['host'];
+        $host = self::unbracket($parts['host']);
         $port = $parts['port'] ?? ($parts['scheme'] === 'https' ? 443 : 80);
 
         $addresses = $this->resolver->resolve($host);
@@ -78,6 +78,22 @@ final readonly class AddressGuard
         }
 
         return new GuardedTarget($host, $port, $addresses[0]);
+    }
+
+    /**
+     * An IPv6 literal is written in a URL inside square brackets, and parse_url
+     * hands them back as part of the host: `http://[::1]/` parses to `[::1]`,
+     * which is no longer an address. filter_var refuses it, so the resolver used
+     * to send it to DNS instead of returning it as a literal — every IPv6 range
+     * above was unreachable through this path, and what refused `[::1]` was the
+     * unresolvable branch rather than the range check. Unbracketed is also the
+     * form curl matches CURLOPT_RESOLVE against.
+     */
+    private static function unbracket(string $host): string
+    {
+        return str_starts_with($host, '[') && str_ends_with($host, ']')
+            ? substr($host, 1, -1)
+            : $host;
     }
 
     private static function isDisallowed(string $address): bool
