@@ -16,12 +16,14 @@ use Illuminate\Support\Facades\Config;
  * delivery_id, endpoint_id and attempt_number are not this class's concern:
  * they come from the database numbering AttemptDelivery reserves, not from
  * anything a response or a refusal carries.
+ *
+ * @phpstan-type AttemptFields array{outcome: AttemptOutcome, request_headers: array<string, string>, request_body: string, response_status: int|null, response_headers: array<string, string>|null, response_body: string|null, error_message: string|null, duration_ms: int}
  */
 final readonly class AttemptRecord
 {
     /**
      * @param  array<string, string>  $requestHeaders
-     * @return array{outcome: AttemptOutcome, request_headers: array<string, string>, request_body: string, response_status: int|null, response_headers: array<string, string>|null, response_body: string|null, error_message: string|null, duration_ms: int}
+     * @return AttemptFields
      */
     public static function fromResponse(array $requestHeaders, string $requestBody, TransportResult $result): array
     {
@@ -65,7 +67,7 @@ final readonly class AttemptRecord
      * nothing about a response to record.
      *
      * @param  array<string, string>  $requestHeaders
-     * @return array{outcome: AttemptOutcome, request_headers: array<string, string>, request_body: string, response_status: int|null, response_headers: array<string, string>|null, response_body: string|null, error_message: string|null, duration_ms: int}
+     * @return AttemptFields
      */
     public static function blocked(array $requestHeaders, string $requestBody, string $reason, int $durationMs): array
     {

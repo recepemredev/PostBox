@@ -5,14 +5,21 @@ declare(strict_types=1);
 use App\Actions\Health\CheckSystemHealth;
 use App\Actions\Identity\IssueApiKey;
 use App\Enums\RoleSlug;
+use App\Jobs\SendDelivery;
 use App\Models\Application;
+use App\Models\Delivery;
+use App\Models\DeliveryAttempt;
 use App\Models\Endpoint;
+use App\Models\EndpointSecret;
 use App\Models\EndpointSubscription;
 use App\Models\EventType;
 use App\Models\Membership;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\Delivery\HttpTransport;
+use App\Support\Delivery\TransportResult;
 use App\Support\Identity\IssuedApiKey;
+use App\Support\Resilience\JitterSource;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
@@ -255,4 +262,112 @@ function publishEvent(array $body, ?string $token = null, ?string $applicationId
     return $test
         ->withToken($token ?? $test->token)
         ->postJson('/api/v1/apps/'.($applicationId ?? $test->application->public_id).'/messages', $body, $headers);
+}
+
+/*
+|--------------------------------------------------------------------------
+| Delivery
+|--------------------------------------------------------------------------
+|
+| Both the Delivery group and the Resilience group attempt real deliveries
+| through the real action, against the one seam the whole chain is built
+| around — the outbound transport. The arrangement and the doubles are here
+| rather than in either file, because writing them twice would be two
+| definitions of what a deliverable message is.
+|
+*/
+
+/**
+ * The smallest arrangement in which a delivery can actually be attempted: a
+ * tenant, an application, a registered event type, a subscribed endpoint with
+ * one active signing secret, and one published message sitting in the outbox.
+ *
+ * The endpoint URL is a literal public address rather than Faker's random
+ * hostname. AddressGuard resolves for real in these groups — nothing doubles
+ * HostResolver — so a literal is what keeps every test deterministic and
+ * independent of the network.
+ *
+ * @return array{Tenant, Endpoint, Delivery, string} the tenant, the endpoint, its one delivery, and the secret it signs with
+ */
+function publishedDelivery(string $tenantName = 'Acme', string $secret = 'whsec_test_secret'): array
+{
+    $tenant = tenantNamed($tenantName);
+
+    [$application, $eventType] = registerProducer($tenant);
+
+    $endpoint = forTenant(
+        $tenant,
+        fn (): Endpoint => subscribedEndpoint($application, $eventType, url: 'http://93.184.216.34/webhook'),
+    );
+
+    forTenant($tenant, function () use ($endpoint, $secret): void {
+        EndpointSecret::factory()->for($endpoint)->create(['secret' => $secret]);
+    });
+
+    $token = issueKeyFor($tenant, memberOf($tenant))->token;
+    publishEvent(invoicePaid(), token: $token, applicationId: $application->public_id)->assertCreated();
+
+    return [$tenant, $endpoint, forTenant($tenant, fn (): Delivery => Delivery::query()->sole()), $secret];
+}
+
+/**
+ * One attempt, through the real job and the real action.
+ */
+function attemptDelivery(Tenant $tenant, Delivery $delivery): void
+{
+    app()->call([new SendDelivery($tenant->public_id, $delivery->public_id), 'handle']);
+}
+
+/**
+ * A transport that answers with the given result, exactly as many times as it
+ * is expected to be reached. The count is a parameter rather than a second
+ * helper: "responds once" and "responds to every attempt" are the same double
+ * with a different expectation.
+ */
+function fakeTransport(TransportResult $result, int $times = 1): void
+{
+    $mock = Mockery::mock(HttpTransport::class);
+    $mock->shouldReceive('send')->times($times)->andReturn($result);
+
+    app()->instance(HttpTransport::class, $mock);
+}
+
+/**
+ * A transport that asserts it is never reached — for the paths where PostBox
+ * refuses to send before a byte leaves the process.
+ */
+function refusingTransport(): void
+{
+    $mock = Mockery::mock(HttpTransport::class);
+    $mock->shouldReceive('send')->never();
+
+    app()->instance(HttpTransport::class, $mock);
+}
+
+/**
+ * Pins the jitter so a retry delay is a fixed number rather than a range. This
+ * is the whole reason JitterSource is an interface.
+ */
+function pinJitter(float $fraction): void
+{
+    $jitter = Mockery::mock(JitterSource::class);
+    $jitter->shouldReceive('fraction')->andReturn($fraction);
+
+    app()->instance(JitterSource::class, $jitter);
+}
+
+function freshDelivery(Tenant $tenant, Delivery $delivery): Delivery
+{
+    return forTenant($tenant, function () use ($delivery): Delivery {
+        $reloaded = $delivery->fresh();
+
+        assert($reloaded instanceof Delivery);
+
+        return $reloaded;
+    });
+}
+
+function onlyAttempt(Tenant $tenant): DeliveryAttempt
+{
+    return forTenant($tenant, fn (): DeliveryAttempt => DeliveryAttempt::query()->sole());
 }

@@ -4,13 +4,8 @@ declare(strict_types=1);
 
 use App\Enums\AttemptOutcome;
 use App\Enums\DeliveryStatus;
-use App\Jobs\SendDelivery;
 use App\Models\Delivery;
 use App\Models\DeliveryAttempt;
-use App\Models\Endpoint;
-use App\Models\EndpointSecret;
-use App\Models\Tenant;
-use App\Support\Delivery\HttpTransport;
 use App\Support\Delivery\Signature;
 use App\Support\Delivery\TransportResult;
 use Carbon\CarbonImmutable;
@@ -20,60 +15,24 @@ use Carbon\CarbonImmutable;
  * delivery, through a real AttemptDelivery, against a faked HttpTransport —
  * the one seam this whole chain is built around. What is asserted here is
  * the ledger CLAUDE.md promises: every attempt recorded, including the ones
- * that never reach the network, and a failure that leaves the delivery
- * pending rather than inventing a retry schedule Step 6 does not own.
+ * that never reach the network. What the schedule between those attempts is
+ * belongs to the Resilience group, not here.
  */
 
 beforeEach(function (): void {
-    $this->tenant = tenantNamed('Acme');
-    $this->now = CarbonImmutable::now();
-    $this->secret = 'whsec_test_secret';
+    [$this->tenant, $this->endpoint, $this->delivery, $this->secret] = publishedDelivery();
 
-    [$this->application, $this->eventType] = registerProducer($this->tenant);
-
-    // AddressGuard resolves for real in this file — nothing here doubles
-    // HostResolver — so the endpoint URL is a literal public IP rather than
-    // Faker's random hostname: a literal never touches DNS, which is what
-    // keeps every test deterministic and independent of the network.
-    $this->endpoint = forTenant(
-        $this->tenant,
-        fn (): Endpoint => subscribedEndpoint($this->application, $this->eventType, url: 'http://93.184.216.34/webhook'),
-    );
-
-    forTenant($this->tenant, function (): void {
-        EndpointSecret::factory()->for($this->endpoint)->create(['secret' => $this->secret]);
-    });
-
-    $token = issueKeyFor($this->tenant, memberOf($this->tenant))->token;
-    publishEvent(invoicePaid(), token: $token, applicationId: $this->application->public_id)->assertCreated();
-
-    $this->delivery = forTenant($this->tenant, fn (): Delivery => Delivery::query()->sole());
+    // Half the delay fixed, half spread — pinning the spread at its midpoint
+    // makes every delay in this file a single number.
+    pinJitter(0.5);
 });
-
-function attemptDelivery(Tenant $tenant, Delivery $delivery): void
-{
-    app()->call([new SendDelivery($tenant->public_id, $delivery->public_id), 'handle']);
-}
-
-function fakeTransport(TransportResult $result): void
-{
-    $mock = Mockery::mock(HttpTransport::class);
-    $mock->shouldReceive('send')->once()->andReturn($result);
-
-    app()->instance(HttpTransport::class, $mock);
-}
-
-function onlyAttempt(Tenant $tenant): DeliveryAttempt
-{
-    return forTenant($tenant, fn (): DeliveryAttempt => DeliveryAttempt::query()->sole());
-}
 
 it('signs and sends a successful delivery, marking it succeeded', function (): void {
     fakeTransport(TransportResult::responded(200, ['Content-Type' => 'application/json'], '{"ok":true}', 42));
 
     attemptDelivery($this->tenant, $this->delivery);
 
-    $delivery = forTenant($this->tenant, fn (): Delivery => $this->delivery->fresh());
+    $delivery = freshDelivery($this->tenant, $this->delivery);
     $attempt = onlyAttempt($this->tenant);
 
     expect($delivery->status)->toBe(DeliveryStatus::Succeeded)
@@ -108,22 +67,27 @@ it('signs exactly the bytes it records as the request body', function (): void {
     expect($verified)->toBeTrue();
 });
 
-it('leaves a failed delivery pending, without inventing a retry delay', function (): void {
-    $sentinel = $this->now->addMinutes(5);
-    forTenant($this->tenant, fn () => $this->delivery->update(['next_attempt_at' => $sentinel]));
+it('leaves a retryable failure pending, due again on the schedule the policy chose', function (): void {
+    // The dispatcher's lease is already in the future when a worker picks a
+    // delivery up. Pinning it far out is what proves the new time came from
+    // the retry policy rather than from the lease being left alone.
+    $lease = CarbonImmutable::now()->addHours(4);
+    forTenant($this->tenant, fn () => $this->delivery->update(['next_attempt_at' => $lease]));
 
     fakeTransport(TransportResult::responded(500, [], '{"error":"server_error"}', 12));
 
     attemptDelivery($this->tenant, $this->delivery);
 
-    $delivery = forTenant($this->tenant, fn (): Delivery => $this->delivery->fresh());
+    $delivery = freshDelivery($this->tenant, $this->delivery);
     $attempt = onlyAttempt($this->tenant);
 
+    // That the new time came from the policy is what this file asserts; what
+    // the policy's numbers actually are is RetryScheduleTest's, and asserting
+    // the sequence in both places would be two definitions of one schedule.
     expect($delivery->status)->toBe(DeliveryStatus::Pending)
-        // The column is second-precision, so the round trip loses the
-        // microseconds $sentinel carries in memory — comparing Unix seconds
-        // is what "settle() never touches next_attempt_at" actually means.
-        ->and($delivery->next_attempt_at?->timestamp)->toBe($sentinel->timestamp)
+        ->and($delivery->exhausted_at)->toBeNull()
+        ->and($delivery->next_attempt_at?->lessThan($lease))->toBeTrue()
+        ->and($delivery->next_attempt_at?->greaterThanOrEqualTo($delivery->last_attempted_at))->toBeTrue()
         ->and($delivery->attempt_count)->toBe(1)
         ->and($attempt->outcome)->toBe(AttemptOutcome::Failed)
         ->and($attempt->response_status)->toBe(500);
@@ -134,10 +98,11 @@ it('records every transport failure class and leaves the delivery pending', func
 
     attemptDelivery($this->tenant, $this->delivery);
 
-    $delivery = forTenant($this->tenant, fn (): Delivery => $this->delivery->fresh());
+    $delivery = freshDelivery($this->tenant, $this->delivery);
     $attempt = onlyAttempt($this->tenant);
 
     expect($delivery->status)->toBe(DeliveryStatus::Pending)
+        ->and($delivery->next_attempt_at)->not->toBeNull()
         ->and($attempt->outcome)->toBe($failure)
         ->and($attempt->response_status)->toBeNull()
         ->and($attempt->error_message)->toBe('a transport-level failure');
@@ -151,13 +116,11 @@ it('records every transport failure class and leaves the delivery pending', func
 it('refuses to send and records Blocked when the endpoint has no active secret', function (): void {
     forTenant($this->tenant, fn () => $this->endpoint->secrets()->delete());
 
-    $mock = Mockery::mock(HttpTransport::class);
-    $mock->shouldReceive('send')->never();
-    app()->instance(HttpTransport::class, $mock);
+    refusingTransport();
 
     attemptDelivery($this->tenant, $this->delivery);
 
-    $delivery = forTenant($this->tenant, fn (): Delivery => $this->delivery->fresh());
+    $delivery = freshDelivery($this->tenant, $this->delivery);
     $attempt = onlyAttempt($this->tenant);
 
     expect($delivery->status)->toBe(DeliveryStatus::Pending)
@@ -168,13 +131,11 @@ it('refuses to send and records Blocked when the endpoint has no active secret',
 it('refuses to send and records Blocked when the target address is disallowed', function (): void {
     forTenant($this->tenant, fn () => $this->endpoint->update(['url' => 'http://127.0.0.1/webhook']));
 
-    $mock = Mockery::mock(HttpTransport::class);
-    $mock->shouldReceive('send')->never();
-    app()->instance(HttpTransport::class, $mock);
+    refusingTransport();
 
     attemptDelivery($this->tenant, $this->delivery);
 
-    $delivery = forTenant($this->tenant, fn (): Delivery => $this->delivery->fresh());
+    $delivery = freshDelivery($this->tenant, $this->delivery);
     $attempt = onlyAttempt($this->tenant);
 
     expect($delivery->status)->toBe(DeliveryStatus::Pending)
@@ -185,9 +146,7 @@ it('refuses to send and records Blocked when the target address is disallowed', 
 it('does not attempt a delivery that has already settled', function (): void {
     forTenant($this->tenant, fn () => $this->delivery->update(['status' => DeliveryStatus::Succeeded]));
 
-    $mock = Mockery::mock(HttpTransport::class);
-    $mock->shouldReceive('send')->never();
-    app()->instance(HttpTransport::class, $mock);
+    refusingTransport();
 
     attemptDelivery($this->tenant, $this->delivery);
 

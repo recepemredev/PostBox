@@ -17,6 +17,7 @@ use App\Support\Delivery\AttemptRecord;
 use App\Support\Delivery\HttpTransport;
 use App\Support\Delivery\OutboundRequest;
 use App\Support\Delivery\Signature;
+use App\Support\Resilience\RetryPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -27,12 +28,12 @@ use Illuminate\Support\Facades\DB;
  * in exactly one delivery_attempts row; there is no branch that produces
  * none, which is what "an attempt is never silently dropped" means in code.
  *
- * There is no retry schedule here. A failure leaves the delivery pending and
- * touches nothing about when it is due again — the dispatcher's own lease,
- * already pushed forward when this job was claimed, is what makes it due
- * once more. Step 7 replaces that with a real backoff; until then the lease
- * interval is the only one there is, and this class does not pretend
- * otherwise by computing a delay it has nowhere to act on.
+ * The retry schedule is not here either. A failure asks RetryPolicy what to
+ * do and writes down the answer — a moment to try again, or the end of the
+ * line and the reason for it. This class owns transport and record-keeping;
+ * Resilience owns when and whether (modules.md).
+ *
+ * @phpstan-import-type AttemptFields from AttemptRecord
  */
 final readonly class AttemptDelivery
 {
@@ -40,6 +41,7 @@ final readonly class AttemptDelivery
         private AddressGuard $guard,
         private Signature $signature,
         private HttpTransport $transport,
+        private RetryPolicy $retry,
     ) {}
 
     public function handle(Delivery $delivery, CarbonImmutable $now): void
@@ -54,9 +56,9 @@ final readonly class AttemptDelivery
         $endpoint = $delivery->endpoint;
         $message = Message::query()->with('eventType')->findOrFail($delivery->message_id);
 
-        $outcome = $this->attempt($delivery, $endpoint, $message, $now, $attemptNumber);
+        $attempt = $this->attempt($delivery, $endpoint, $message, $now, $attemptNumber);
 
-        $this->settle($delivery, $outcome, $now);
+        $this->settle($delivery, $attempt, $attemptNumber, $now);
     }
 
     /**
@@ -80,13 +82,16 @@ final readonly class AttemptDelivery
         });
     }
 
+    /**
+     * @return AttemptFields
+     */
     private function attempt(
         Delivery $delivery,
         Endpoint $endpoint,
         Message $message,
         CarbonImmutable $now,
         int $attemptNumber,
-    ): AttemptOutcome {
+    ): array {
         $payload = self::encode($message->payload);
 
         $headers = [
@@ -133,9 +138,10 @@ final readonly class AttemptDelivery
     }
 
     /**
-     * @param  array{outcome: AttemptOutcome, request_headers: array<string, string>, request_body: string, response_status: int|null, response_headers: array<string, string>|null, response_body: string|null, error_message: string|null, duration_ms: int}  $fields
+     * @param  AttemptFields  $fields
+     * @return AttemptFields
      */
-    private function record(Delivery $delivery, Endpoint $endpoint, int $attemptNumber, array $fields): AttemptOutcome
+    private function record(Delivery $delivery, Endpoint $endpoint, int $attemptNumber, array $fields): array
     {
         DeliveryAttempt::create([
             ...$fields,
@@ -144,13 +150,29 @@ final readonly class AttemptDelivery
             'attempt_number' => $attemptNumber,
         ]);
 
-        return $fields['outcome'];
+        return $fields;
     }
 
-    private function settle(Delivery $delivery, AttemptOutcome $outcome, CarbonImmutable $now): void
+    /**
+     * Writes down what the attempt means for the delivery as a whole: delivered,
+     * due again at a moment the policy chose, or dead-lettered.
+     *
+     * Every write here is conditional on the delivery still being pending, and
+     * that is not belt and braces. reserveAttemptNumber() locks only long enough
+     * to hand out a number, so two workers can legitimately hold attempts 1 and
+     * 2 of the same delivery at once — a slow send and a lease that expired
+     * underneath it. Without the predicate, the slower of the two would settle
+     * second and could reopen a delivery the faster one had already exhausted,
+     * or dead-letter one that had just succeeded. With it, the first to settle
+     * wins and the second writes nothing, which is what makes a message reach
+     * the dead letter queue exactly once.
+     *
+     * @param  AttemptFields  $fields
+     */
+    private function settle(Delivery $delivery, array $fields, int $attemptNumber, CarbonImmutable $now): void
     {
-        if ($outcome === AttemptOutcome::Succeeded) {
-            $delivery->update([
+        if ($fields['outcome'] === AttemptOutcome::Succeeded) {
+            $this->settleTo($delivery, [
                 'status' => DeliveryStatus::Succeeded,
                 'next_attempt_at' => null,
                 'last_attempted_at' => $now,
@@ -159,7 +181,35 @@ final readonly class AttemptDelivery
             return;
         }
 
-        $delivery->update(['last_attempted_at' => $now]);
+        $decision = $this->retry->decide($fields['outcome'], $fields['response_status'], $attemptNumber, $now);
+
+        if ($decision->shouldRetry) {
+            $this->settleTo($delivery, [
+                'next_attempt_at' => $decision->nextAttemptAt,
+                'last_attempted_at' => $now,
+            ]);
+
+            return;
+        }
+
+        $this->settleTo($delivery, [
+            'status' => DeliveryStatus::Exhausted,
+            'next_attempt_at' => null,
+            'last_attempted_at' => $now,
+            'exhausted_at' => $now,
+            'failure_reason' => $decision->reason,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function settleTo(Delivery $delivery, array $attributes): void
+    {
+        Delivery::query()
+            ->whereKey($delivery->getKey())
+            ->where('status', DeliveryStatus::Pending)
+            ->update($attributes);
     }
 
     /**
