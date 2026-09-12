@@ -70,16 +70,20 @@ it('leaves a delivery that is not due yet', function (): void {
     Queue::assertNothingPushed();
 });
 
-it('leaves a delivery that is already settled', function (string $status): void {
+it('leaves a delivery that is already settled', function (DeliveryStatus $status): void {
     publishEvent(invoicePaid())->assertCreated();
 
-    forTenant($this->acme, fn (): bool => Delivery::query()->sole()
-        ->update(['status' => $status, 'next_attempt_at' => null]));
+    // An exhausted delivery carries the moment it gave up, because
+    // deliveries_exhausted_shape_check will not hold one without the other.
+    $settled = ['status' => $status, 'next_attempt_at' => null]
+        + ($status === DeliveryStatus::Exhausted ? ['exhausted_at' => now()] : []);
+
+    forTenant($this->acme, fn (): bool => Delivery::query()->sole()->update($settled));
 
     dispatchOutbox();
 
     Queue::assertNothingPushed();
-})->with([DeliveryStatus::Succeeded->value, DeliveryStatus::Exhausted->value]);
+})->with([DeliveryStatus::Succeeded, DeliveryStatus::Exhausted]);
 
 it('does not hand the same delivery out twice while its lease holds', function (): void {
     publishEvent(invoicePaid())->assertCreated();

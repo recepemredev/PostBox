@@ -9,6 +9,7 @@ use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\HasPublicId;
 use Carbon\CarbonImmutable;
 use Database\Factories\DeliveryFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -30,6 +31,8 @@ use Illuminate\Support\Carbon;
  * @property int $attempt_count
  * @property CarbonImmutable|null $next_attempt_at
  * @property CarbonImmutable|null $last_attempted_at
+ * @property CarbonImmutable|null $exhausted_at
+ * @property string|null $failure_reason
  * @property Carbon $created_at
  * @property Carbon $updated_at
  * @property-read Endpoint $endpoint
@@ -48,11 +51,26 @@ final class Delivery extends Model
         'attempt_count',
         'next_attempt_at',
         'last_attempted_at',
+        'exhausted_at',
+        'failure_reason',
     ];
 
     public static function publicIdPrefix(): string
     {
         return 'dlv';
+    }
+
+    /**
+     * The dead letter queue. It is a predicate rather than a table because an
+     * exhausted delivery is the same row it always was — nothing about it moves
+     * anywhere, which is also what makes "never deleted by the delivery path"
+     * true by construction rather than by discipline.
+     *
+     * @param  Builder<$this>  $query
+     */
+    public function scopeDeadLettered(Builder $query): void
+    {
+        $query->where('status', DeliveryStatus::Exhausted);
     }
 
     /**
@@ -80,6 +98,7 @@ final class Delivery extends Model
             'status' => DeliveryStatus::class,
             'next_attempt_at' => 'immutable_datetime',
             'last_attempted_at' => 'immutable_datetime',
+            'exhausted_at' => 'immutable_datetime',
         ];
     }
 }

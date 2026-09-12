@@ -33,8 +33,18 @@ final class DeliveryFactory extends Factory
         return $this->state(fn (): array => ['status' => DeliveryStatus::Succeeded, 'next_attempt_at' => null]);
     }
 
+    /**
+     * exhausted_at is not optional here: deliveries_exhausted_shape_check holds
+     * the database to "exhausted means there is a moment it gave up", so a state
+     * that set only the status would build a row the schema rejects.
+     */
     public function exhausted(): self
     {
-        return $this->state(fn (): array => ['status' => DeliveryStatus::Exhausted, 'next_attempt_at' => null]);
+        return $this->state(fn (): array => [
+            'status' => DeliveryStatus::Exhausted,
+            'next_attempt_at' => null,
+            'exhausted_at' => now(),
+            'failure_reason' => 'exhausted after 8 attempts; last outcome: failed',
+        ]);
     }
 }
