@@ -59,6 +59,25 @@ it('hands a due delivery to the queue', function (): void {
     Queue::assertPushed(SendDelivery::class, 1);
 });
 
+it('hands a delivery that has already been tried to the retry queue instead', function (): void {
+    publishEvent(invoicePaid())->assertCreated();
+
+    // What makes a hand-off a retry is that attempts are already behind it.
+    // The two queues drain on separate worker services, so a backlog of
+    // retries against one broken endpoint cannot starve events that have not
+    // had a first attempt yet.
+    forTenant($this->acme, fn (): bool => Delivery::query()->sole()
+        ->update(['attempt_count' => 1, 'next_attempt_at' => now()]));
+
+    dispatchOutbox();
+
+    Queue::assertPushed(
+        SendDelivery::class,
+        fn (SendDelivery $job): bool => $job->isRetry && $job->queue === 'retries',
+    );
+    Queue::assertPushed(SendDelivery::class, 1);
+});
+
 it('leaves a delivery that is not due yet', function (): void {
     publishEvent(invoicePaid())->assertCreated();
 

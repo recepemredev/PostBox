@@ -44,7 +44,9 @@ final readonly class DispatchOutbox
         $tenant = $this->context->currentOrFail()->public_id;
 
         foreach ($claimed as $delivery) {
-            SendDelivery::dispatch($tenant, $delivery->public_id);
+            // A delivery with attempts behind it is a retry, and retries drain
+            // on their own queue and their own workers (config/horizon.php).
+            SendDelivery::dispatch($tenant, $delivery->public_id, $delivery->attempt_count > 0);
         }
 
         return $claimed->count();
