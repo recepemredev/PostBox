@@ -104,6 +104,11 @@ return [
     | Delivery
     |--------------------------------------------------------------------------
     |
+    | queue carries a delivery's first hand-off and retry_queue every one after
+    | it, drained by two worker services that scale independently
+    | (config/horizon.php, compose.yaml). The split is what stops a backlog of
+    | retries from starving events that have not been tried even once.
+    |
     | connect_timeout_ms and timeout_ms are env values, not literals: unlike a
     | plan's numbers, how long this deployment is willing to wait on a
     | customer's server is an operational knob, not a product decision.
@@ -124,6 +129,7 @@ return [
     */
     'delivery' => [
         'queue' => env('POSTBOX_DELIVERY_QUEUE', 'deliveries'),
+        'retry_queue' => env('POSTBOX_DELIVERY_RETRY_QUEUE', 'retries'),
 
         'connect_timeout_ms' => (int) env('POSTBOX_DELIVERY_CONNECT_TIMEOUT_MS', 5000),
         'timeout_ms' => (int) env('POSTBOX_DELIVERY_TIMEOUT_MS', 15000),
@@ -136,6 +142,44 @@ return [
             'set-cookie',
             'proxy-authorization',
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Retry
+    |--------------------------------------------------------------------------
+    |
+    | The whole retry schedule, in one place, so it can be read off on paper and
+    | pinned in a test. max_attempts counts the first attempt, so 8 means one
+    | send and seven retries. The delay for attempt n is equal jitter over an
+    | exponential base:
+    |
+    |     temp  = min(ceiling_ms, base_delay_ms * growth_factor ** (n - 1))
+    |     delay = temp / 2 + jitter() * temp / 2
+    |
+    | Half the delay is therefore fixed and half is spread, which keeps the
+    | sequence recognisably exponential while still pulling a thundering herd
+    | apart — an endpoint that drops a thousand deliveries at once does not get
+    | all thousand back in the same second.
+    |
+    | With jitter pinned at 0.5 the sequence is 3.75s, 11.25s, 33.75s, 101.25s,
+    | 303.75s, 911.25s, 2733.75s, then the ceiling's 2700s: about an hour and
+    | twenty minutes of trying before a delivery is dead-lettered.
+    |
+    | One floor is not in this arithmetic: the dispatcher claims on a one-minute
+    | schedule, so a delay shorter than a minute is rounded up to its next pass.
+    | base_delay_ms is a lower bound on the wait, never the wait itself.
+    |
+    | These are env values, for the same reason the delivery timeouts are: how
+    | long this deployment is willing to keep trying a customer's server is an
+    | operational decision, not a product one.
+    |
+    */
+    'retry' => [
+        'max_attempts' => (int) env('POSTBOX_RETRY_MAX_ATTEMPTS', 8),
+        'base_delay_ms' => (int) env('POSTBOX_RETRY_BASE_DELAY_MS', 5_000),
+        'growth_factor' => (int) env('POSTBOX_RETRY_GROWTH_FACTOR', 3),
+        'ceiling_ms' => (int) env('POSTBOX_RETRY_CEILING_MS', 3_600_000),
     ],
 
     /*

@@ -7,6 +7,8 @@ namespace App\Providers;
 use App\Support\Delivery\GuzzleTransport;
 use App\Support\Delivery\HttpTransport;
 use App\Support\Identity\Permissions;
+use App\Support\Resilience\JitterSource;
+use App\Support\Resilience\RandomJitter;
 use App\Support\Tenancy\TenantContext;
 use GuzzleHttp\Client;
 use GuzzleHttp\ClientInterface;
@@ -57,6 +59,14 @@ final class AppServiceProvider extends ServiceProvider
          */
         $this->app->singleton(ClientInterface::class, static fn (): ClientInterface => new Client);
         $this->app->bind(HttpTransport::class, GuzzleTransport::class);
+
+        /*
+         * The jitter source, the other pre-approved boundary interface. Same
+         * shape and same reason as the transport above: one implementation
+         * ships, and a test binds its own so the retry schedule is a fixed
+         * sequence rather than a range.
+         */
+        $this->app->bind(JitterSource::class, RandomJitter::class);
     }
 
     public function boot(): void
