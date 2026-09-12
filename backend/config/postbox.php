@@ -197,4 +197,30 @@ return [
         'tolerance_seconds' => (int) env('POSTBOX_SIGNATURE_TOLERANCE_SECONDS', 300),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Circuit breaker
+    |--------------------------------------------------------------------------
+    |
+    | One endpoint that keeps failing should not go on consuming worker
+    | capacity a request at a time. failure_threshold is how many non-success
+    | attempts inside window_seconds trip the breaker; open_seconds is how long
+    | it then refuses every delivery outright. probe_timeout_seconds is how
+    | long a single admitted probe is trusted to still be in flight before a
+    | later dispatcher pass treats it as abandoned and admits a fresh one — the
+    | same "the worker that claimed this never ran" reasoning the outbox lease
+    | already makes, so it matches that lease by default.
+    |
+    | These are env values, for the same reason the retry schedule's are: how
+    | long this deployment is willing to hold a customer's endpoint off is an
+    | operational decision, not a product one.
+    |
+    */
+    'breaker' => [
+        'failure_threshold' => (int) env('POSTBOX_BREAKER_FAILURE_THRESHOLD', 5),
+        'window_seconds' => (int) env('POSTBOX_BREAKER_WINDOW_SECONDS', 60),
+        'open_seconds' => (int) env('POSTBOX_BREAKER_OPEN_SECONDS', 60),
+        'probe_timeout_seconds' => (int) env('POSTBOX_BREAKER_PROBE_TIMEOUT_SECONDS', 300),
+    ],
+
 ];

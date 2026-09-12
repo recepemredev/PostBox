@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Delivery;
 
+use App\Actions\Resilience\RecordAttemptOutcome;
 use App\Enums\AttemptOutcome;
 use App\Enums\DeliveryStatus;
 use App\Exceptions\BlockedTarget;
@@ -31,7 +32,9 @@ use Illuminate\Support\Facades\DB;
  * The retry schedule is not here either. A failure asks RetryPolicy what to
  * do and writes down the answer — a moment to try again, or the end of the
  * line and the reason for it. This class owns transport and record-keeping;
- * Resilience owns when and whether (modules.md).
+ * Resilience owns when and whether, and owns the breaker too — this class
+ * hands RecordAttemptOutcome the outcome once it is written and never asks
+ * what an endpoint's breaker should do about it (modules.md).
  *
  * @phpstan-import-type AttemptFields from AttemptRecord
  */
@@ -42,6 +45,7 @@ final readonly class AttemptDelivery
         private Signature $signature,
         private HttpTransport $transport,
         private RetryPolicy $retry,
+        private RecordAttemptOutcome $breaker,
     ) {}
 
     public function handle(Delivery $delivery, CarbonImmutable $now): void
@@ -57,6 +61,12 @@ final readonly class AttemptDelivery
         $message = Message::query()->with('eventType')->findOrFail($delivery->message_id);
 
         $attempt = $this->attempt($delivery, $endpoint, $message, $now, $attemptNumber);
+
+        // Every attempt counts toward the endpoint's breaker, independent of
+        // which worker ends up settling this particular delivery below — the
+        // row is already written, and the window this reads is the ledger,
+        // not something scoped to one delivery's own race.
+        $this->breaker->handle($endpoint, $attempt['outcome'], $now);
 
         $this->settle($delivery, $attempt, $attemptNumber, $now);
     }
