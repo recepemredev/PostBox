@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use App\Actions\Health\CheckSystemHealth;
 use App\Actions\Identity\IssueApiKey;
+use App\Enums\BreakerState;
 use App\Enums\RoleSlug;
 use App\Jobs\SendDelivery;
 use App\Models\Application;
 use App\Models\Delivery;
 use App\Models\DeliveryAttempt;
 use App\Models\Endpoint;
+use App\Models\EndpointCircuitBreaker;
 use App\Models\EndpointSecret;
 use App\Models\EndpointSubscription;
 use App\Models\EventType;
@@ -370,4 +372,53 @@ function freshDelivery(Tenant $tenant, Delivery $delivery): Delivery
 function onlyAttempt(Tenant $tenant): DeliveryAttempt
 {
     return forTenant($tenant, fn (): DeliveryAttempt => DeliveryAttempt::query()->sole());
+}
+
+/**
+ * Runs the scheduled dispatcher exactly the way the scheduler does.
+ *
+ * Shared between the outbox's own tests and the breaker's: both drive the
+ * dispatcher end to end rather than calling DispatchOutbox directly, because
+ * whether a claimed delivery reaches the queue is a question about the whole
+ * command, lease and admission included.
+ */
+function dispatchOutbox(): void
+{
+    test()->artisan('outbox:dispatch')->assertSuccessful();
+}
+
+function onlyDelivery(Tenant $tenant): Delivery
+{
+    return forTenant($tenant, fn (): Delivery => Delivery::query()->sole());
+}
+
+/**
+ * An endpoint's breaker row, or null for one that has never tripped — the
+ * same absent-row-means-closed shape the model and the migration both take.
+ */
+function endpointBreaker(Tenant $tenant, Endpoint $endpoint): ?EndpointCircuitBreaker
+{
+    return forTenant(
+        $tenant,
+        fn (): ?EndpointCircuitBreaker => EndpointCircuitBreaker::query()->where('endpoint_id', $endpoint->id)->first(),
+    );
+}
+
+/**
+ * A breaker row already sitting at the given state, for tests that start
+ * somewhere other than "no row yet". Shared between the transition table's
+ * own tests and the ones that drive RecordAttemptOutcome and AdmitEndpoint
+ * from a half-open or open breaker.
+ */
+function breakerAt(Tenant $tenant, Endpoint $endpoint, BreakerState $state): EndpointCircuitBreaker
+{
+    return forTenant($tenant, function () use ($endpoint, $state): EndpointCircuitBreaker {
+        $factory = EndpointCircuitBreaker::factory()->for($endpoint);
+
+        return match ($state) {
+            BreakerState::Closed => $factory->closed()->create(),
+            BreakerState::Open => $factory->create(),
+            BreakerState::HalfOpen => $factory->halfOpen()->create(),
+        };
+    });
 }

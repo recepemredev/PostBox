@@ -6,7 +6,6 @@ use App\Enums\DeliveryStatus;
 use App\Jobs\SendDelivery;
 use App\Models\Delivery;
 use App\Models\Endpoint;
-use App\Models\Tenant;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Queue;
 
@@ -29,16 +28,6 @@ beforeEach(function (): void {
 
     forTenant($this->acme, fn (): Endpoint => subscribedEndpoint($this->application, $this->eventType));
 });
-
-function dispatchOutbox(): void
-{
-    test()->artisan('outbox:dispatch')->assertSuccessful();
-}
-
-function onlyDelivery(Tenant $tenant): Delivery
-{
-    return forTenant($tenant, fn (): Delivery => Delivery::query()->sole());
-}
 
 it('hands a due delivery to the queue', function (): void {
     publishEvent(invoicePaid())->assertCreated();

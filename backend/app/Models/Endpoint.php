@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -30,6 +31,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $created_at
  * @property Carbon $updated_at
  * @property-read Application $application
+ * @property-read EndpointCircuitBreaker|null $breaker
  */
 final class Endpoint extends Model
 {
@@ -74,6 +76,17 @@ final class Endpoint extends Model
     public function deliveries(): HasMany
     {
         return $this->hasMany(Delivery::class);
+    }
+
+    /**
+     * Absent for an endpoint that has never tripped — closed is the default a
+     * missing row means, not a row this relation has to produce.
+     *
+     * @return HasOne<EndpointCircuitBreaker, $this>
+     */
+    public function breaker(): HasOne
+    {
+        return $this->hasOne(EndpointCircuitBreaker::class);
     }
 
     /**
