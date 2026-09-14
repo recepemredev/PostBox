@@ -1,0 +1,8 @@
+/vendor
+/storage/framework/cache/*
+/storage/framework/views/*
+/storage/logs/*
+.env
+.phpunit.result.cache
+/bootstrap/cache/*
+!/bootstrap/cache/.gitkeep

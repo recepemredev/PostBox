@@ -1,0 +1,17 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: max
+
+    paths:
+        - app
+        - bootstrap
+        - routes
+
+    # Tests are outside the analysed paths for the same reason they are in the
+    # backend: Pest binds `$this` inside a test closure at runtime, which no
+    # static analyser can see. The suite is verified by running it.
+    #
+    # No baseline here either — D5 is a project rule, not a backend one.
+    treatPhpDocTypesAsCertain: false
