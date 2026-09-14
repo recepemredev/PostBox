@@ -15,7 +15,7 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
  * echoed back — it is client-supplied text, and the caller already knows it.
  *
  * Shared between Ingest's publish reservation and Recovery's replay
- * reservation (D75): both need exactly this refusal, worded for what each
+ * reservation (D77): both need exactly this refusal, worded for what each
  * one's key actually reserves.
  */
 final class IdempotencyConflict extends ConflictHttpException

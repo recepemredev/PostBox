@@ -10,7 +10,7 @@ namespace App\Support\Idempotency;
  * comparison against one stored earlier. Which facts belong in the digest is
  * the caller's question, not this class's — Ingest's publish reservation and
  * Recovery's replay reservation each assemble their own parts, and neither's
- * parts mean anything to the other (D75).
+ * parts mean anything to the other (D77).
  */
 final readonly class Fingerprint
 {

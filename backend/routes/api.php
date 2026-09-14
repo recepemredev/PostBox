@@ -54,7 +54,7 @@ Route::prefix('v1')->middleware('dashboard')->group(function (): void {
         /*
          * Recovery. An operator's own action, so it rides the session
          * credential rather than the ingest surface's API key — the same
-         * distinction Identity draws between a person and a system (D27) —
+         * distinction Identity draws between a person and a system (D37) —
          * and `governor` still applies: a replay opens real deliveries
          * through the same pipeline a fresh publish does, and modules.md
          * already commits Governor to sitting in front of both.

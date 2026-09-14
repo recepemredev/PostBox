@@ -13,9 +13,8 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  * This is a 404 rather than a receipt reporting zero deliveries: naming "all
  * of a message's subscribers" and getting none back is an honest answer about
  * a message nobody was subscribed to, but naming one specific endpoint is a
- * claim about something that should exist, the same distinction route model
- * binding already draws for a foreign application (D4) — a caller who names a
- * target gets 404 when it is not there, not a quiet success that did nothing.
+ * claim about something that should exist — a caller who names a target gets
+ * 404 when it is not there, not a quiet success that did nothing.
  */
 final class ReplayTargetNotFound extends NotFoundHttpException
 {

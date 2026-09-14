@@ -13,19 +13,18 @@ use Illuminate\Support\Facades\Schema;
  * itself. The work is the ordinary delivery rows it opens (Step 9's next
  * migration); this table only ever answers "what was asked for, and when".
  *
- * idempotency_key is optional, the same choice D41 made for a producer's own
+ * idempotency_key is optional, the same choice D39 made for a producer's own
  * Idempotency-Key: an operator clicking once is not made to invent one, but a
  * script retrying a recovery call gets the same replay back rather than a
  * second one. Unique per tenant, matching idempotency_keys' own shape.
  *
  * request_hash is what tells a genuine retry from a key reused for a
  * different request — the same problem PublishMessage's own reservation
- * solves, and the same fingerprint mechanism (D75). Unlike idempotency_keys,
+ * solves, and the same fingerprint mechanism (D77). Unlike idempotency_keys,
  * there is no separate reservation table: replays is not partitioned, so the
  * row that is the receipt can be the reservation as well, and the two never
  * need to be two tables kept in step.
  *
-
  * Exactly one of two shapes is legal, enforced at the database rather than
  * trusted to the action that writes it: a single message (optionally narrowed
  * to one endpoint among its original subscribers), or an endpoint's own
