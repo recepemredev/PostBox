@@ -4,9 +4,9 @@ A self-hosted, multi-tenant webhook delivery gateway. Tenants register endpoints
 through an API, and PostBox guarantees delivery with HMAC signing, idempotency, retries with
 backoff, and per-endpoint circuit breaking.
 
-> **Status: under construction.** Step 1 of 17 — foundation and quality gates. The application
-> shell, container topology and CI gates exist; the delivery engine does not yet. See
-> `.claude/docs/roadmap.md`.
+> **Status: under construction.** Step 10 of 17 — load sink and benchmark baseline. Tenancy,
+> identity, the domain model, ingest, Governor, the delivery engine and resilience are done; the
+> first benchmark numbers exist below. See `.claude/docs/roadmap.md`.
 
 ## Quickstart
 
@@ -29,6 +29,24 @@ Then:
 | http://localhost:8025 | Mailpit (development profile only) |
 
 `task.ps1 down` stops the stack; `task.ps1 fresh` rebuilds it from empty volumes.
+
+## Benchmark
+
+The first honest number, per `.claude/docs/benchmarking.md`: a sink ceiling reported next to
+every PostBox figure, and no claim without a committed k6 script behind it. Full results,
+environment record and raw k6 output: `load/results/2026-09-14/`.
+
+| Phase | Workers | Throughput | p95 | Sink ceiling | Date |
+|---|---|---|---|---|---|
+| 1 — Sink ceiling | — | ≥ 6,400 req/s | 1.78ms | — | 2026-09-14 |
+| 2 — Ingest (workers stopped) | 0 | 19.9 req/s | 276ms | ≥ 6,400 req/s | 2026-09-14 |
+| 3 — End-to-end delivery | 1 | 14.9 req/s ingest · 100% delivered | 257ms ingest · 44s ingest-to-delivered | ≥ 6,400 req/s | 2026-09-14 |
+
+Phase 2's ceiling is `pm.max_children = 5` — the stock PHP-FPM pool size, never tuned by this
+repository — not the ingest logic itself. Phase 3's 44-second delivery latency is
+`DispatchOutboxCommand`'s once-a-minute schedule, not worker throughput: every attempt that ran
+succeeded in about 1ms. Phases 4 (scaling curve) and 5 (degraded receiver) are deferred to
+Step 11, which asks the scaling question this benchmark would otherwise ask a step early.
 
 ## No server exists
 
