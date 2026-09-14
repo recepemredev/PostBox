@@ -10,8 +10,10 @@ use App\Exceptions\ReplayTargetNotFound;
 use App\Models\Delivery;
 use App\Models\Replay;
 use App\Support\Idempotency\Fingerprint;
+use App\Support\Recovery\ReplayCursor;
 use App\Support\Recovery\ReplayResult;
 use App\Support\Recovery\ReplayScope;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
@@ -32,7 +34,9 @@ final readonly class ReplayDeliveries
     public function handle(ReplayScope $scope, ?string $idempotencyKey = null): ReplayResult
     {
         if ($idempotencyKey === null) {
-            return new ReplayResult(DB::transaction(fn (): Replay => $this->write($scope)), duplicate: false);
+            [$replay, $nextCursor] = DB::transaction(fn (): array => $this->write($scope));
+
+            return new ReplayResult($replay, duplicate: false, nextCursor: $nextCursor);
         }
 
         $fingerprint = Fingerprint::of(...$scope->fingerprintParts());
@@ -43,7 +47,9 @@ final readonly class ReplayDeliveries
         }
 
         try {
-            $replay = DB::transaction(fn (): Replay => $this->write($scope, $idempotencyKey, $fingerprint));
+            [$replay, $nextCursor] = DB::transaction(
+                fn (): array => $this->write($scope, $idempotencyKey, $fingerprint),
+            );
         } catch (UniqueConstraintViolationException $violation) {
             /*
              * The race: another request reserved this key between the read
@@ -61,15 +67,19 @@ final readonly class ReplayDeliveries
             return new ReplayResult($this->matching($winner, $fingerprint), duplicate: true);
         }
 
-        return new ReplayResult($replay, duplicate: false);
+        return new ReplayResult($replay, duplicate: false, nextCursor: $nextCursor);
     }
 
     /**
-     * The receipt and its deliveries. Called inside a transaction, always.
+     * The receipt and its deliveries, plus a cursor for whatever a range
+     * scope's own batch ceiling left unread. Called inside a transaction,
+     * always.
+     *
+     * @return array{0: Replay, 1: string|null}
      */
-    private function write(ReplayScope $scope, ?string $idempotencyKey = null, ?Fingerprint $fingerprint = null): Replay
+    private function write(ReplayScope $scope, ?string $idempotencyKey = null, ?Fingerprint $fingerprint = null): array
     {
-        $originals = $scope->deliveries()->get();
+        [$originals, $nextCursor] = $this->matchedDeliveries($scope);
 
         if ($originals->isEmpty() && $scope->requiresMatch()) {
             throw new ReplayTargetNotFound;
@@ -102,7 +112,39 @@ final readonly class ReplayDeliveries
             ]);
         }
 
-        return $replay;
+        return [$replay, $nextCursor];
+    }
+
+    /**
+     * What the scope names, bounded to its own batch ceiling when it has
+     * one. A range scope's ceiling is fetched one row past the limit so this
+     * can tell "exactly this many" from "at least this many" without a
+     * second, separate count query — the extra row is trimmed back off
+     * before it ever reaches a delivery this replay opens.
+     *
+     * @return array{0: Collection<int, Delivery>, 1: string|null}
+     */
+    private function matchedDeliveries(ReplayScope $scope): array
+    {
+        $limit = $scope->limit();
+        $query = $scope->deliveries();
+
+        if ($limit !== null) {
+            $query->limit($limit + 1);
+        }
+
+        $matched = $query->get();
+
+        if ($limit === null || $matched->count() <= $limit) {
+            return [$matched, null];
+        }
+
+        $matched = $matched->slice(0, $limit)->values();
+
+        $last = $matched->last();
+        assert($last !== null);
+
+        return [$matched, ReplayCursor::after($last)->encode()];
     }
 
     /**

@@ -62,6 +62,9 @@ Route::prefix('v1')->middleware('dashboard')->group(function (): void {
         Route::middleware('governor')->group(function (): void {
             Route::post('messages/{message}/replay', [ReplayController::class, 'message'])
                 ->name('replays.message');
+
+            Route::post('endpoints/{endpoint}/replays', [ReplayController::class, 'range'])
+                ->name('replays.range');
         });
     });
 });

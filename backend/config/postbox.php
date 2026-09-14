@@ -223,4 +223,23 @@ return [
         'probe_timeout_seconds' => (int) env('POSTBOX_BREAKER_PROBE_TIMEOUT_SECONDS', 300),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Replay
+    |--------------------------------------------------------------------------
+    |
+    | max_deliveries_per_request bounds one range replay the same way
+    | outbox.batch_size bounds one dispatcher pass: an operator recovering a
+    | large outage cannot hold a transaction open for the whole window, so a
+    | call takes at most this many exhausted deliveries and hands back a
+    | cursor for the rest. An env value, not a literal — how large a single
+    | recovery call is allowed to be is an operational decision, not a
+    | product one, the same reasoning the outbox lease and the retry schedule
+    | already carry.
+    |
+    */
+    'replay' => [
+        'max_deliveries_per_request' => (int) env('POSTBOX_REPLAY_BATCH_SIZE', 200),
+    ],
+
 ];
