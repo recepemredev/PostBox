@@ -22,11 +22,19 @@ use Illuminate\Support\Carbon;
  * single-column key for a constraint to reference — the relation below still
  * works, since Eloquent only needs matching values, not a database-level FK.
  *
+ * replay_id is null for the row PublishMessage's own fan-out opened, and set
+ * for one Recovery opened instead: a replay is a second obligation against the
+ * same message and endpoint, never a change to the first. Nothing in this
+ * class treats the two differently — a replay clears its own attempts, its own
+ * breaker admission and its own retry budget exactly the way an original does,
+ * because it is an ordinary pending row in every way but where it came from.
+ *
  * @property int $id
  * @property string $public_id
  * @property int $tenant_id
  * @property int $message_id
  * @property int $endpoint_id
+ * @property int|null $replay_id
  * @property DeliveryStatus $status
  * @property int $attempt_count
  * @property CarbonImmutable|null $next_attempt_at
@@ -37,6 +45,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $updated_at
  * @property-read Endpoint $endpoint
  * @property-read Message $message
+ * @property-read Replay|null $replay
  */
 final class Delivery extends Model
 {
@@ -47,6 +56,7 @@ final class Delivery extends Model
     protected $fillable = [
         'message_id',
         'endpoint_id',
+        'replay_id',
         'status',
         'attempt_count',
         'next_attempt_at',
@@ -87,6 +97,16 @@ final class Delivery extends Model
     public function message(): BelongsTo
     {
         return $this->belongsTo(Message::class);
+    }
+
+    /**
+     * Null for the fan-out's own row. Set for one Recovery opened instead.
+     *
+     * @return BelongsTo<Replay, $this>
+     */
+    public function replay(): BelongsTo
+    {
+        return $this->belongsTo(Replay::class);
     }
 
     /**
