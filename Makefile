@@ -88,6 +88,7 @@ ci:
 	$(MAKE) test
 	$(PROD) build
 	bash docker/scripts/assert-production-images.sh
+	bash docker/scripts/assert-bench-absent-from-production.sh
 	bash docker/scripts/assert-scheduler-singleton.sh
 	$(MAKE) prod-up
 	$(MAKE) prod-down

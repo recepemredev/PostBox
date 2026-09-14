@@ -152,6 +152,13 @@ jobs:
       - name: Assert no development dependency and no root process in a production image
         run: bash docker/scripts/assert-production-images.sh
 
+      - name: Assert the benchmark overlay cannot be active in production
+        # How Step 10 resolved D75: the sink is reachable because the bench
+        # network uses an address AddressGuard already allows, not because the
+        # guard gained an exception. This asserts the other half of that — the
+        # network exists nowhere near the production profile.
+        run: bash docker/scripts/assert-bench-absent-from-production.sh
+
       - name: Assert the scheduler cannot be scaled
         run: bash docker/scripts/assert-scheduler-singleton.sh
 

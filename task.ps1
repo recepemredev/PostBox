@@ -175,6 +175,7 @@ switch ($Target) {
 
         Invoke-Step ($Prod + @('build'))
         Invoke-Step @($bash, 'docker/scripts/assert-production-images.sh')
+        Invoke-Step @($bash, 'docker/scripts/assert-bench-absent-from-production.sh')
         Invoke-Step @($bash, 'docker/scripts/assert-scheduler-singleton.sh')
 
         & $PSCommandPath prod-up

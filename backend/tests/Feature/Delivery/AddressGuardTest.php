@@ -37,6 +37,7 @@ it('refuses a disallowed address', function (string $url): void {
     'loopback (IPv6)' => 'http://[::1]/webhook',
     'private, class A (RFC 1918)' => 'http://10.1.2.3/webhook',
     'private, class B (RFC 1918)' => 'http://172.16.5.9/webhook',
+    "Docker's default pool — where a container actually lands" => 'http://172.22.0.4/webhook',
     'private, class C (RFC 1918)' => 'http://192.168.1.1/webhook',
     'link-local — cloud metadata endpoint' => 'http://169.254.169.254/latest/meta-data',
     'carrier-grade NAT (RFC 6598)' => 'http://100.64.0.1/webhook',
@@ -48,6 +49,31 @@ it('refuses a disallowed address', function (string $url): void {
     'multicast (IPv6)' => 'http://[ff02::1]/webhook',
     'IPv4-mapped IPv6 — refused outright, not unwrapped' => 'http://[::ffff:8.8.8.8]/webhook',
 ]);
+
+/**
+ * The benchmark network, and the reason Step 10 could keep this guard intact.
+ *
+ * The load sink is a container, so on the default Docker network it lands in
+ * 172.16.0.0/12 and every delivery to it is refused before a byte leaves the
+ * process — the dataset above pins exactly the address one was observed at
+ * live (203.0.113.2, in fact, on the bench network below). The resolution
+ * was not an allowlist in the application: an escape hatch that can reach
+ * production is the SSRF protection deleting itself. The bench network is
+ * given 203.0.113.0/24 instead (TEST-NET-3, RFC 5737) — reserved, routed
+ * nowhere, and in none of the disallowed ranges — so the guard needs no
+ * exception at all to let the sink through.
+ *
+ * This test is the standing guarantee for that. Hardening the range list is a
+ * good instinct, and adding the RFC 5737 documentation ranges to it would take
+ * the benchmark out of service silently, because nothing else in the suite
+ * sends to the sink. Here it fails loudly instead (D84).
+ */
+it('allows the benchmark network, so the sink needs no exception in the guard', function (): void {
+    $target = $this->guard->guard('http://203.0.113.7:8000/sink');
+
+    expect($target->address)->toBe('203.0.113.7')
+        ->and($target->port)->toBe(8000);
+});
 
 it('allows a public address', function (): void {
     $target = $this->guard->guard('https://8.8.8.8:9443/webhook');
