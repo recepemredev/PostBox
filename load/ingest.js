@@ -24,10 +24,13 @@ import { number, payload, rampingOptions, text } from './lib/options.js';
 
 export const options = rampingOptions();
 
-// /v1 is the public ingest API, routed by nginx straight to Laravel's front
-// controller with no prefix stripped — the path here is exactly the route
-// PublishMessageRequest answers (routes/api.php), never /api/v1.
-const url = `${text('POSTBOX_URL', 'http://nginx:8080')}/v1/apps/${text('APP_ID', '')}/messages`;
+// /api/v1, not /v1: Laravel's own withRouting(api: ...) wraps everything
+// routes/api.php declares in an implicit /api prefix, on top of whatever the
+// file adds itself (Route::prefix('v1')). nginx's regex also matches a bare
+// /v1/ and would proxy it to the same backend, which is what made the wrong
+// path a 404 from Laravel rather than a connection failure from nginx —
+// verified live against route:list and a direct curl before fixing this.
+const url = `${text('POSTBOX_URL', 'http://nginx:8080')}/api/v1/apps/${text('APP_ID', '')}/messages`;
 
 const body = JSON.stringify({
   event_type: text('EVENT_TYPE', 'bench.event'),
