@@ -1,0 +1,83 @@
+name: postbox
+
+# Benchmark overlay. Never composed with compose.prod.yaml, and never started
+# by `up` — `make bench` / `task.ps1 bench` is the only thing that layers this
+# file on (conventions.md carries the exception this file is: one compose.yaml,
+# one production override, and a bench overlay never composed with production).
+#
+# The bench network is what resolves D75. AddressGuard refuses every RFC 1918,
+# loopback and link-local address on the delivery path, and Docker's default
+# pool sits inside 172.16.0.0/12, so a sink on the default network is refused
+# before a byte leaves the worker. The fix is not an allowlist in the
+# application — an escape hatch that can reach production is the SSRF
+# protection deleting itself — but an address the guard already considers
+# ordinary: 203.0.113.0/24 is TEST-NET-3 (RFC 5737), reserved for documentation
+# and examples, routed nowhere, and in none of the guard's disallowed ranges.
+#
+# The property Step 10 has to guarantee is that the resolution cannot be active
+# in production. Here that is structural rather than conditional: this file is
+# not part of the production profile, so the network does not exist there and
+# there is no flag that could be set wrongly.
+# docker/scripts/assert-bench-absent-from-production.sh asserts it in CI.
+networks:
+  default:
+  bench:
+    ipam:
+      config:
+        - subnet: 203.0.113.0/24
+
+services:
+  # The receiver under test. On the bench network only, so `sink` resolves to a
+  # 203.0.113.x address from the workers and the guard lets it through, while
+  # postgres and redis stay on the default network where the guard still
+  # refuses them — the benchmark does not widen what a delivery can reach, it
+  # moves one target out of the refused range.
+  sink:
+    image: postbox-sink:bench
+    build:
+      context: .
+      dockerfile: docker/sink/Dockerfile
+      target: prod
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      # The stack's own key rather than a second one. The sink encrypts
+      # nothing, holds no session and issues no cookie — the value exists only
+      # so the framework boots, and inventing a separate secret for it would be
+      # one more thing in .env that means nothing.
+      APP_KEY: ${APP_KEY}
+    networks:
+      - bench
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  # The delivery workers are the only PostBox services that need to reach the
+  # sink, and they keep their place on the default network for postgres and
+  # redis. Nothing else joins bench.
+  worker-deliveries:
+    networks:
+      - default
+      - bench
+
+  worker-retries:
+    networks:
+      - default
+      - bench
+
+  # Not started by `up`. Each phase of the protocol runs it with its own
+  # script: Phase 1 drives the sink directly over the bench network, Phases 2
+  # to 5 drive the ingest surface through nginx on the default network.
+  k6:
+    image: grafana/k6:0.54.0
+    profiles: ["bench"]
+    networks:
+      - default
+      - bench
+    volumes:
+      - ./load:/load:ro
+      - ./load/results:/results
+    entrypoint: ["k6"]

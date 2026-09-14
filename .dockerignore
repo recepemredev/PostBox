@@ -12,7 +12,6 @@
 docs
 load
 sdk
-sink
 
 **/.env
 **/.env.*
@@ -30,6 +29,17 @@ backend/.phpunit.result.cache
 frontend/node_modules
 frontend/.next
 frontend/out
+
+# The sink entered the build context in Step 10. Its own image needs the source
+# tree, so the directory is no longer excluded wholesale — only the artefacts,
+# for the same reason the backend's are: a stale local vendor/ baked into an
+# image is built from the development dependency set.
+sink/vendor
+sink/bootstrap/cache/*.php
+sink/storage/logs/*.log
+sink/storage/framework/cache/data/*
+sink/storage/framework/views/*.php
+sink/.phpunit.result.cache
 
 *.md
 !README.md
