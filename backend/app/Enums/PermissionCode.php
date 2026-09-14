@@ -17,4 +17,6 @@ enum PermissionCode: string
     case ApiKeyRead = 'api_key.read';
 
     case ApiKeyManage = 'api_key.manage';
+
+    case DeliveryReplay = 'delivery.replay';
 }

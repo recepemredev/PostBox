@@ -32,6 +32,7 @@ use Illuminate\Database\DatabaseManager;
 use Illuminate\Database\Migrations\MigrationRepositoryInterface;
 use Illuminate\Database\Migrations\Migrator;
 use Illuminate\Redis\Connections\Connection as RedisConnection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -142,6 +143,35 @@ function degradedChecks(TestResponse $response): array
 function tenantNamed(string $name): Tenant
 {
     return Tenant::factory()->create(['name' => $name]);
+}
+
+/**
+ * A tenant committed for real, through the schema owner's own connection,
+ * rather than inside RefreshDatabase's ambient transaction — the setup half
+ * of the race trick a genuine concurrency test needs: a second, real session
+ * has to be able to see this row while the test's own transaction is still
+ * open. Cleaned up after the test's transaction rolls back, since nothing
+ * else will.
+ *
+ * Shared by Ingest's own idempotency race (IdempotentPublishTest) and
+ * Recovery's replay race (ReplayMessageTest) — both need exactly this tenant,
+ * committed the same way, for the same reason.
+ */
+function committedTenant(string $name): Tenant
+{
+    $tenant = Tenant::factory()->connection('pgsql_admin')->create(['name' => $name]);
+
+    /** @var TestCase $test */
+    $test = test();
+
+    // After RefreshDatabase's own rollback, which was registered first. Every
+    // row the test wrote for this tenant is gone by then; a rival's own
+    // committed row goes with the tenant, through the cascade.
+    $test->beforeApplicationDestroyed(function () use ($tenant): void {
+        DB::connection('pgsql_admin')->table('tenants')->where('id', $tenant->id)->delete();
+    });
+
+    return $tenant;
 }
 
 /**

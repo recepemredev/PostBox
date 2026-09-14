@@ -6,6 +6,7 @@ use App\Http\Controllers\ApiKeyController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\MeController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\ReplayController;
 use App\Http\Controllers\SessionController;
 use App\Models\ApiKey;
 use Illuminate\Support\Facades\Route;
@@ -49,6 +50,19 @@ Route::prefix('v1')->middleware('dashboard')->group(function (): void {
         Route::delete('api-keys/{apiKey}', [ApiKeyController::class, 'destroy'])
             ->can('delete', 'apiKey')
             ->name('api-keys.destroy');
+
+        /*
+         * Recovery. An operator's own action, so it rides the session
+         * credential rather than the ingest surface's API key — the same
+         * distinction Identity draws between a person and a system (D27) —
+         * and `governor` still applies: a replay opens real deliveries
+         * through the same pipeline a fresh publish does, and modules.md
+         * already commits Governor to sitting in front of both.
+         */
+        Route::middleware('governor')->group(function (): void {
+            Route::post('messages/{message}/replay', [ReplayController::class, 'message'])
+                ->name('replays.message');
+        });
     });
 });
 

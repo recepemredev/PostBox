@@ -11,7 +11,6 @@ use App\Models\Tenant;
 use App\Support\Idempotency\Fingerprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
-use Tests\TestCase;
 
 /*
  * A replay returns the original message and produces nothing — no second
@@ -128,29 +127,13 @@ it('rejects a key carrying characters that do not belong in a log line', functio
  * RefreshDatabase wraps each test in a transaction on the application
  * connection, so a second session cannot normally see anything the test set up.
  * Two rows are therefore committed for real through the owner's connection —
- * the tenant, and the rival's reservation — and removed once the test's own
+ * the tenant (committedTenant(), Pest.php — Recovery's own race test needs the
+ * same tenant), and the rival's reservation — and removed once the test's own
  * transaction has rolled back and released the locks that reference them. That
  * is the whole trick, and it buys the one branch nothing else can reach: the
  * reservation read misses, and by the time the write lands, someone else has
  * taken the key.
  */
-
-function committedTenant(string $name): Tenant
-{
-    $tenant = Tenant::factory()->connection('pgsql_admin')->create(['name' => $name]);
-
-    /** @var TestCase $test */
-    $test = test();
-
-    // After RefreshDatabase's own rollback, which was registered first. Every
-    // row the test wrote for this tenant is gone by then; the rival's
-    // reservation goes with the tenant, through the cascade.
-    $test->beforeApplicationDestroyed(function () use ($tenant): void {
-        DB::connection('pgsql_admin')->table('tenants')->where('id', $tenant->id)->delete();
-    });
-
-    return $tenant;
-}
 
 function commitRivalReservation(Tenant $tenant, string $key, Message $message, string $fingerprint): void
 {

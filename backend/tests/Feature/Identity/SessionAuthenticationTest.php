@@ -26,7 +26,7 @@ it('signs a member in and answers with who they are and where', function (): voi
         ->assertJsonPath('user.id', $this->ada->public_id)
         ->assertJsonPath('user.email', $this->ada->email)
         ->assertJsonPath('tenant.id', $this->acme->public_id)
-        ->assertJsonPath('permissions', ['api_key.read', 'api_key.manage']);
+        ->assertJsonPath('permissions', ['api_key.read', 'api_key.manage', 'delivery.replay']);
 
     $this->assertAuthenticatedAs($this->ada);
 });
