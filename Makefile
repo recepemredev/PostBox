@@ -7,8 +7,15 @@
 .PHONY: up down fresh logs test stan format check ci prod-up prod-down bench help
 .DEFAULT_GOAL := help
 
-DEV  := docker compose --profile dev
-PROD := docker compose -f compose.yaml -f compose.prod.yaml
+DEV   := docker compose --profile dev
+PROD  := docker compose -f compose.yaml -f compose.prod.yaml
+
+# The benchmark overlay is never layered on PROD. It carries the bench network
+# that resolves D75, and the guarantee Step 10 makes is that the resolution
+# cannot be active in the production profile — true here because the two
+# invocations never share a file. CI asserts it independently
+# (assert-bench-absent-from-production.sh).
+BENCH := docker compose -f compose.yaml -f compose.bench.yaml
 
 # Creates .env on first run and fills in the application key. A Laravel key is
 # `base64:` followed by 32 random bytes; generating it here rather than inside a
@@ -103,9 +110,23 @@ prod-up:
 prod-down:
 	$(PROD) down --remove-orphans
 
+# Phase 1 of benchmarking.md, which is the one that needs no judgement: bring
+# the bench stack up, seed a tenant to publish into, and measure the sink
+# ceiling every later figure is reported against. Phases 2 to 5 need the
+# worker count changed and the ledger read between runs, so they are printed
+# rather than run — a protocol that scrolled past unattended would produce
+# numbers nobody watched.
 bench:
-	@echo "bench: the load harness and the k6 scripts arrive in Step 10." >&2
-	@exit 1
+	$(ensure_env)
+	$(BENCH) up -d --build
+	$(BENCH) run --rm healthgate
+	$(BENCH) exec -T backend php artisan db:seed --class=BenchSeeder --force
+	$(BENCH) --profile bench run --rm k6 run /load/sink-ceiling.js
+	@echo ""
+	@echo "Phase 1 done. Record sink_ceiling_rps before publishing anything else."
+	@echo "Phases 2-5 (APP_ID and API_KEY come from the seeder table above):"
+	@echo "  $(BENCH) --profile bench run --rm -e APP_ID=... -e API_KEY=... k6 run /load/ingest.js"
+	@echo "  psql -v tenant_id=... -v minutes=10 -f load/queries/delivery-throughput.sql"
 
 help:
 	@echo "PostBox task runner"
@@ -121,7 +142,7 @@ help:
 	@echo "  make ci          every gate the workflow runs — the pre-push check"
 	@echo "  make prod-up     build and start the production profile, then assert health"
 	@echo "  make prod-down   stop the production profile"
-	@echo "  make bench       run the benchmark protocol (Step 10)"
+	@echo "  make bench       bring up the bench stack, seed it and measure the sink ceiling"
 
 # Lets `make logs backend` pass the service name through without make treating it
 # as a target of its own.

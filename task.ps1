@@ -22,6 +22,13 @@ Set-Location -Path $PSScriptRoot
 $Dev = @('docker', 'compose', '--profile', 'dev')
 $Prod = @('docker', 'compose', '-f', 'compose.yaml', '-f', 'compose.prod.yaml')
 
+# The benchmark overlay is never layered on $Prod. It carries the bench network
+# that resolves D75, and the guarantee Step 10 makes is that the resolution
+# cannot be active in the production profile — true here because the two
+# invocations never share a file. CI asserts it independently
+# (assert-bench-absent-from-production.sh).
+$Bench = @('docker', 'compose', '-f', 'compose.yaml', '-f', 'compose.bench.yaml')
+
 function Invoke-Step {
     param([string[]] $Command)
 
@@ -195,9 +202,24 @@ switch ($Target) {
         Invoke-Step ($Prod + @('down', '--remove-orphans'))
     }
 
+    # Phase 1 of benchmarking.md, which is the one that needs no judgement:
+    # bring the bench stack up, seed a tenant to publish into, and measure the
+    # sink ceiling every later figure is reported against. Phases 2 to 5 need
+    # the worker count changed and the ledger read between runs, so they are
+    # printed rather than run — a protocol that scrolled past unattended would
+    # produce numbers nobody watched.
     'bench' {
-        Write-Host 'bench: the load harness and the k6 scripts arrive in Step 10.' -ForegroundColor Red
-        exit 1
+        Initialize-Environment
+        Invoke-Step ($Bench + @('up', '-d', '--build'))
+        Invoke-Step ($Bench + @('run', '--rm', 'healthgate'))
+        Invoke-Step ($Bench + @('exec', '-T', 'backend', 'php', 'artisan', 'db:seed', '--class=BenchSeeder', '--force'))
+        Invoke-Step ($Bench + @('--profile', 'bench', 'run', '--rm', 'k6', 'run', '/load/sink-ceiling.js'))
+
+        Write-Host ''
+        Write-Host 'Phase 1 done. Record sink_ceiling_rps before publishing anything else.' -ForegroundColor Green
+        Write-Host 'Phases 2-5 (APP_ID and API_KEY come from the seeder table above):'
+        Write-Host "  $($Bench -join ' ') --profile bench run --rm -e APP_ID=... -e API_KEY=... k6 run /load/ingest.js"
+        Write-Host '  psql -v tenant_id=... -v minutes=10 -f load/queries/delivery-throughput.sql'
     }
 
     'help' {
@@ -215,7 +237,7 @@ PostBox task runner
   .\task.ps1 ci          every gate the workflow runs — the pre-push check
   .\task.ps1 prod-up     build and start the production profile, then assert health
   .\task.ps1 prod-down   stop the production profile
-  .\task.ps1 bench       run the benchmark protocol (Step 10)
+  .\task.ps1 bench       bring up the bench stack, seed it and measure the sink ceiling
 '@
     }
 

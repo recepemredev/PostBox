@@ -55,6 +55,17 @@ services:
       retries: 6
       start_period: 30s
 
+  # Phases 2-5 (benchmarking.md) drive the ingest surface hard enough that the
+  # pro plan's own 100 rps refill would be the thing measured instead of the
+  # ingest path — config/postbox.php reads both as env values for exactly this
+  # override. `environment:` merges by key on top of env_file's values from
+  # .env, so only these two change; quota is untouched, since even the
+  # longest run here spends a small fraction of the pro plan's monthly ceiling.
+  backend:
+    environment:
+      POSTBOX_RATE_LIMIT_PRO_CAPACITY: "5000"
+      POSTBOX_RATE_LIMIT_PRO_REFILL_PER_SECOND: "5000"
+
   # The delivery workers are the only PostBox services that need to reach the
   # sink, and they keep their place on the default network for postgres and
   # redis. Nothing else joins bench.
