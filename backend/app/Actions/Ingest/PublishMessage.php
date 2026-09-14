@@ -13,8 +13,8 @@ use App\Models\EndpointSubscription;
 use App\Models\EventType;
 use App\Models\IdempotencyKey;
 use App\Models\Message;
+use App\Support\Idempotency\Fingerprint;
 use App\Support\Ingest\PublishedMessage;
-use App\Support\Ingest\RequestFingerprint;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Config;
@@ -60,7 +60,7 @@ final readonly class PublishMessage
             );
         }
 
-        $fingerprint = RequestFingerprint::of($application, $eventType, $payload);
+        $fingerprint = Fingerprint::of($application->public_id, $eventType, (string) json_encode($payload));
         $reserved = $this->reservation($idempotencyKey);
 
         if ($reserved instanceof IdempotencyKey) {
@@ -165,7 +165,7 @@ final readonly class PublishMessage
         return IdempotencyKey::query()->where('key', $key)->first();
     }
 
-    private function reserve(string $key, RequestFingerprint $fingerprint, Message $message): void
+    private function reserve(string $key, Fingerprint $fingerprint, Message $message): void
     {
         IdempotencyKey::create([
             'key' => $key,
@@ -189,7 +189,7 @@ final readonly class PublishMessage
      * alternative — carrying created_at on the reservation purely to prune
      * partitions — would be a second copy of the message's own timestamp.
      */
-    private function replay(IdempotencyKey $reservation, RequestFingerprint $fingerprint): Message
+    private function replay(IdempotencyKey $reservation, Fingerprint $fingerprint): Message
     {
         if (! $fingerprint->matches($reservation->request_hash)) {
             throw new IdempotencyConflict;

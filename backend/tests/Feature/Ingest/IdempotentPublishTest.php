@@ -8,7 +8,7 @@ use App\Models\Endpoint;
 use App\Models\IdempotencyKey;
 use App\Models\Message;
 use App\Models\Tenant;
-use App\Support\Ingest\RequestFingerprint;
+use App\Support\Idempotency\Fingerprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -185,7 +185,7 @@ it('returns the winner when two identical requests race for the same key', funct
         ]);
     });
 
-    $fingerprint = RequestFingerprint::of($application, 'invoice.paid', ['total' => 4200]);
+    $fingerprint = Fingerprint::of($application->public_id, 'invoice.paid', (string) json_encode(['total' => 4200]));
 
     // The rival commits between our read and our write. Hanging it off the
     // message being created puts it exactly there: the reservation lookup has
