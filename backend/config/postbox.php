@@ -82,20 +82,34 @@ return [
     | Two limits, kept genuinely separate. rate_limit is a token bucket:
     | capacity is the burst a tenant can spend at once and refill_per_second is
     | how fast it comes back. quota is cumulative and resets on the calendar
-    | month; messages_per_period is the ceiling for that period. Both are
-    | literals rather than env values, for the same reason max_payload_bytes is:
-    | a plan's numbers are a product decision, not a deployment knob.
+    | month; messages_per_period is the ceiling for that period.
+    |
+    | These are env values, unlike max_payload_bytes: a plan's numbers are
+    | still a product decision, not a deployment knob, but Step 10 has to
+    | drive the ingest path at the rates benchmarking.md's Phases 2-5 ask for,
+    | and the pro plan's own 100 rps refill is below what a scaling curve
+    | needs to measure the delivery path rather than the limiter. Every
+    | default below reproduces the product numbers exactly, so an operator who
+    | never sets these gets precisely what shipped before this existed —
+    | compose.bench.yaml is the only place any of them are actually
+    | overridden, and only for the pro plan the benchmark tenant is seeded on.
     |
     */
     'governor' => [
         'rate_limit' => [
-            'free' => ['capacity' => 20, 'refill_per_second' => 10],
-            'pro' => ['capacity' => 200, 'refill_per_second' => 100],
+            'free' => [
+                'capacity' => (int) env('POSTBOX_RATE_LIMIT_FREE_CAPACITY', 20),
+                'refill_per_second' => (int) env('POSTBOX_RATE_LIMIT_FREE_REFILL_PER_SECOND', 10),
+            ],
+            'pro' => [
+                'capacity' => (int) env('POSTBOX_RATE_LIMIT_PRO_CAPACITY', 200),
+                'refill_per_second' => (int) env('POSTBOX_RATE_LIMIT_PRO_REFILL_PER_SECOND', 100),
+            ],
         ],
 
         'quota' => [
-            'free' => ['messages_per_period' => 10_000],
-            'pro' => ['messages_per_period' => 1_000_000],
+            'free' => ['messages_per_period' => (int) env('POSTBOX_QUOTA_FREE_MESSAGES_PER_PERIOD', 10_000)],
+            'pro' => ['messages_per_period' => (int) env('POSTBOX_QUOTA_PRO_MESSAGES_PER_PERIOD', 1_000_000)],
         ],
     ],
 
