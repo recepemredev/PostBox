@@ -16,6 +16,7 @@ It is deliberately short. The full internal working record lives in
 | 0004 | Per-endpoint circuit breaker | planned | Step 8 |
 | 0005 | Public identifiers: prefixed ULIDs | planned | Step 3 |
 | 0006 | Why the repository pattern was rejected | planned | Step 17 |
+| 0007 | Benchmark network resolves the SSRF-guard conflict without an allowlist | accepted | Step 10 |
 
 An ADR is written in the step that implements the decision, not retroactively at the end. Step 17
 only curates and cross-links them.
