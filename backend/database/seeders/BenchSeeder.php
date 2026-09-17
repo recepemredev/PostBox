@@ -38,9 +38,12 @@ use Illuminate\Support\Str;
  * (config/postbox.php, compose.bench.yaml), so plan alone is not what makes
  * the run possible; it is what makes the *right* limits apply.
  *
- * The target URL is a parameter, not the sink. This class knows nothing about
- * what is listening on the other end, which is what keeps modules.md's
- * dependency pointing one way.
+ * The target URL (or URLs) is a parameter, not the sink. This class knows
+ * nothing about what is listening on the other end, which is what keeps
+ * modules.md's dependency pointing one way. One publish fans out to every
+ * seeded endpoint alike — several target URLs are several subscribers to the
+ * same event type, exactly what an operator's own dashboard would produce,
+ * not a second delivery path built for this class alone.
  *
  * Run:
  *   docker compose -f compose.yaml -f compose.bench.yaml exec -T backend \
@@ -64,7 +67,7 @@ final class BenchSeeder extends Seeder
         $tenant = $membership->tenant;
         $tenant->update(['plan' => Plan::Pro]);
 
-        /** @var array{application: string, endpoint: string, token: string} $seeded */
+        /** @var array{application: string, endpoints: list<array{url: string, endpoint: string}>, token: string} $seeded */
         $seeded = app(TenantContext::class)->runFor(
             $tenant,
             fn (): array => $this->seed($membership->user),
@@ -74,16 +77,33 @@ final class BenchSeeder extends Seeder
     }
 
     /**
-     * @return array{application: string, endpoint: string, token: string}
+     * @return array{application: string, endpoints: list<array{url: string, endpoint: string}>, token: string}
      */
     private function seed(User $creator): array
     {
         $application = Application::factory()->create(['name' => 'Benchmark']);
         $eventType = EventType::factory()->create(['name' => self::EventTypeName]);
 
+        $endpoints = array_map(
+            fn (string $url): array => $this->seedEndpoint($application, $eventType, $url),
+            self::targets(),
+        );
+
+        return [
+            'application' => $application->public_id,
+            'endpoints' => $endpoints,
+            'token' => app(IssueApiKey::class)->handle('benchmark', $creator)->token,
+        ];
+    }
+
+    /**
+     * @return array{url: string, endpoint: string}
+     */
+    private function seedEndpoint(Application $application, EventType $eventType, string $url): array
+    {
         $endpoint = Endpoint::factory()->create([
             'application_id' => $application->id,
-            'url' => self::target(),
+            'url' => $url,
         ]);
 
         // Without an active secret AttemptDelivery refuses before it sends, and
@@ -95,38 +115,47 @@ final class BenchSeeder extends Seeder
             'event_type_id' => $eventType->id,
         ]);
 
-        return [
-            'application' => $application->public_id,
-            'endpoint' => $endpoint->public_id,
-            'token' => app(IssueApiKey::class)->handle('benchmark', $creator)->token,
-        ];
+        return ['url' => $url, 'endpoint' => $endpoint->public_id];
     }
 
-    private static function target(): string
+    /**
+     * @return list<string>
+     */
+    private static function targets(): array
     {
         // Config::string()'s own default parameter only applies when the key
         // is entirely absent, and config/bench.php always declares it — unset
         // in .env, its value is present but null, so the check has to be
         // manual rather than delegated to the helper's default.
-        $configured = Config::get('bench.target_url');
+        $configured = Config::get('bench.target_urls');
 
-        return is_string($configured) && $configured !== '' ? $configured : self::DefaultTarget;
+        if (! is_string($configured) || $configured === '') {
+            return [self::DefaultTarget];
+        }
+
+        return array_values(array_filter(array_map('trim', explode(',', $configured)), fn (string $url): bool => $url !== ''));
     }
 
     /**
-     * @param  array{application: string, endpoint: string, token: string}  $seeded
+     * @param  array{application: string, endpoints: list<array{url: string, endpoint: string}>, token: string}  $seeded
      */
     private function report(Tenant $tenant, array $seeded): void
     {
-        $this->command?->table(['', ''], [
+        $rows = [
             ['tenant', $tenant->public_id],
             ['plan', $tenant->plan->value],
             ['application', $seeded['application']],
-            ['endpoint', $seeded['endpoint']],
-            ['target', self::target()],
             ['event type', self::EventTypeName],
-            ['API key', $seeded['token']],
-        ]);
+        ];
+
+        foreach ($seeded['endpoints'] as $i => $endpoint) {
+            $rows[] = ['endpoint '.($i + 1), $endpoint['endpoint']];
+            $rows[] = ['target '.($i + 1), $endpoint['url']];
+        }
+
+        $rows[] = ['API key', $seeded['token']];
+
+        $this->command?->table(['', ''], $rows);
 
         // The key is shown once here for the same reason the dashboard shows it
         // once: nothing writes the plaintext down. A run that loses it seeds
