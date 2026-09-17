@@ -102,25 +102,14 @@ it('reports seconds remaining until the next calendar month', function (): void 
  * RefreshDatabase wraps the test in a transaction on the application
  * connection, so a second session cannot normally see anything the test set
  * up. The tenant is therefore committed for real through the owner's
- * connection, the same trick Step 4's idempotency race uses, and removed once
- * the test's own transaction has rolled back.
+ * connection — committedTenant(), the same trick Step 4's idempotency race
+ * uses — and removed once the test's own transaction has rolled back.
  */
-
-function committedQuotaTenant(string $name): Tenant
-{
-    $tenant = Tenant::factory()->connection('pgsql_admin')->create(['name' => $name]);
-
-    test()->beforeApplicationDestroyed(function () use ($tenant): void {
-        DB::connection('pgsql_admin')->table('tenants')->where('id', $tenant->id)->delete();
-    });
-
-    return $tenant;
-}
 
 it('counts both sides of two requests racing to be the first of a period', function (): void {
     config(['postbox.governor.quota.free.messages_per_period' => 5]);
 
-    $tenant = committedQuotaTenant('Racer');
+    $tenant = committedTenant('Racer');
     $now = CarbonImmutable::now();
     $period = $now->startOfMonth()->toDateString();
 

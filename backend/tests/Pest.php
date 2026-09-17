@@ -153,9 +153,9 @@ function tenantNamed(string $name): Tenant
  * open. Cleaned up after the test's transaction rolls back, since nothing
  * else will.
  *
- * Shared by Ingest's own idempotency race (IdempotentPublishTest) and
- * Recovery's replay race (ReplayMessageTest) — both need exactly this tenant,
- * committed the same way, for the same reason.
+ * Shared by Ingest's own idempotency race (IdempotentPublishTest), Governor's
+ * quota race (QuotaTest) and Recovery's replay race (ReplayMessageTest) — all
+ * three need exactly this tenant, committed the same way, for the same reason.
  */
 function committedTenant(string $name): Tenant
 {
