@@ -97,6 +97,7 @@ ci:
 	bash docker/scripts/assert-production-images.sh
 	bash docker/scripts/assert-bench-absent-from-production.sh
 	bash docker/scripts/assert-scheduler-singleton.sh
+	bash docker/scripts/assert-stateless-workers.sh
 	$(MAKE) prod-up
 	$(MAKE) prod-down
 	@echo "ci: every gate the workflow runs passed locally"

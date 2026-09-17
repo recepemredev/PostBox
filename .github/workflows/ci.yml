@@ -162,6 +162,9 @@ jobs:
       - name: Assert the scheduler cannot be scaled
         run: bash docker/scripts/assert-scheduler-singleton.sh
 
+      - name: Assert the workers are stateless and scalable
+        run: bash docker/scripts/assert-stateless-workers.sh
+
       - name: Start the production profile and assert the deep health check
         run: make prod-up
 
