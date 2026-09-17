@@ -216,11 +216,33 @@ switch ($Target) {
         Invoke-Step ($Bench + @('exec', '-T', 'backend', 'php', 'artisan', 'db:seed', '--class=BenchSeeder', '--force'))
         Invoke-Step ($Bench + @('--profile', 'bench', 'run', '--rm', 'k6', 'run', '/load/sink-ceiling.js'))
 
+        $benchStr = $Bench -join ' '
+
         Write-Host ''
         Write-Host 'Phase 1 done. Record sink_ceiling_rps before publishing anything else.' -ForegroundColor Green
-        Write-Host 'Phases 2-5 (APP_ID and API_KEY come from the seeder table above):'
-        Write-Host "  $($Bench -join ' ') --profile bench run --rm -e APP_ID=... -e API_KEY=... k6 run /load/ingest.js"
-        Write-Host '  psql -v tenant_id=... -v minutes=10 -f load/queries/delivery-throughput.sql'
+        Write-Host ''
+        Write-Host 'Phases 2-3 (APP_ID and API_KEY come from the seeder table above):'
+        Write-Host "  $benchStr stop worker-deliveries worker-retries   # Phase 2: ingest alone"
+        Write-Host "  $benchStr --profile bench run --rm -e APP_ID=... -e API_KEY=... k6 run /load/ingest.js"
+        Write-Host "  $benchStr up -d worker-deliveries worker-retries  # Phase 3: end to end"
+        Write-Host "  $benchStr --profile bench run --rm -e APP_ID=... -e API_KEY=... k6 run /load/ingest.js"
+        Write-Host "  $benchStr exec -T postgres psql -U postbox_app -d postbox -v tenant_id=... -v minutes=10 -f - < load/queries/delivery-throughput.sql"
+        Write-Host ''
+        Write-Host 'Phase 4 — backlog drain, repeat for N = 1, 3, 5 (fresh seed each time):'
+        Write-Host "  $benchStr exec -T backend php artisan db:seed --class=BenchSeeder --force"
+        Write-Host "  $benchStr stop worker-deliveries worker-retries"
+        Write-Host "  $benchStr --profile bench run --rm -e APP_ID=... -e API_KEY=... -e STAGES=20:100s k6 run /load/ingest.js"
+        Write-Host "  $benchStr exec -T redis redis-cli --scan --pattern '*queues:*'   # find the queue key, record its depth"
+        Write-Host "  $benchStr up -d --scale worker-deliveries=N worker-deliveries; $benchStr up -d worker-retries"
+        Write-Host "  $benchStr exec -T redis redis-cli llen <queue key>               # poll to zero, note the wall clock"
+        Write-Host "  $benchStr exec -T postgres psql -U postbox_app -d postbox -v tenant_id=... -v minutes=15 -f - < load/queries/delivery-throughput.sql"
+        Write-Host ''
+        Write-Host 'Phase 5 — degraded receiver, once (re-seeds a fresh tenant with two endpoints):'
+        Write-Host "  $benchStr exec -T backend env BENCH_TARGET_URLS='http://sink:8000/sink?delay=0&fail_rate=0,http://sink:8000/sink?fail_rate=0.3&delay=500' php artisan db:seed --class=BenchSeeder --force"
+        Write-Host "  $benchStr --profile bench run --rm -e APP_ID=... -e API_KEY=... k6 run /load/ingest.js"
+        Write-Host "  $benchStr exec -T redis redis-cli llen <prefix>queues:retries    # sample a few times during the run"
+        Write-Host "  $benchStr exec -T backend php artisan postbox:breakers"
+        Write-Host "  $benchStr exec -T postgres psql -U postbox_app -d postbox -v tenant_id=... -v minutes=15 -f - < load/queries/delivery-throughput.sql"
     }
 
     'help' {
