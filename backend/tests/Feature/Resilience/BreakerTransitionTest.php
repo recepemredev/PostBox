@@ -130,11 +130,8 @@ it('rejects every illegal transition without writing a row or an audit entry', f
 ]);
 
 /*
- * The race on an endpoint's very first trip is exercised end to end in
- * BreakerAdmissionTest, the same way DispatchOutboxTest proves its own lease
- * with two sequential calls on one connection rather than a second
- * connection racing for real — the second call sees exactly what the first
- * committed, which is the property that matters. A cross-connection replay
- * of that trick here would only be asserting the same guarantee a second,
- * more expensive way.
+ * The race on an endpoint's very first trip, and on every later compare-and-
+ * set move, is exercised with a genuine second session in BreakerRaceTest —
+ * a real committed rival rather than a second connection this file would
+ * otherwise have to open just for the two tests that need one.
  */
