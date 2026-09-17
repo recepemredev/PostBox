@@ -16,6 +16,7 @@ use App\Models\EndpointSecret;
 use App\Models\EndpointSubscription;
 use App\Models\EventType;
 use App\Models\Membership;
+use App\Models\Message;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\Delivery\HttpTransport;
@@ -172,6 +173,75 @@ function committedTenant(string $name): Tenant
     });
 
     return $tenant;
+}
+
+/**
+ * A tenant, one subscribed endpoint, and N deliveries already pending and due
+ * — a whole outbox committed for real, the same way committedTenant() commits
+ * one row: through the schema owner's connection, rather than inside
+ * RefreshDatabase's ambient transaction. This is the fixture a genuine
+ * two-session concurrency test needs on the other side of the claim.
+ *
+ * One message can only ever have one original delivery to a given endpoint
+ * (deliveries_message_id_endpoint_id_unique, narrowed to replay_id is null),
+ * so N deliveries means N messages, each fanned out to the one endpoint —
+ * exactly what N publishes to a single subscriber would have produced.
+ *
+ * The arrangement reuses the same helpers publishedDelivery() does
+ * (registerProducer(), subscribedEndpoint(), a literal resolvable URL), so
+ * "what a deliverable message is" stays defined once. What is different is
+ * the connection: everything below runs against pgsql_admin instead of the
+ * default, and TenantSession::bind() writes to whatever the default
+ * connection is with no argument of its own — so switching the default
+ * before calling forTenant() is enough to carry it along too, and nothing
+ * here needs a hand-written set_config the way the older race helpers do.
+ *
+ * @return array{Tenant, Endpoint, list<string>} the tenant, its one endpoint, and the public ids of its pending deliveries
+ */
+function committedOutbox(string $tenantName, int $deliveries): array
+{
+    DB::setDefaultConnection('pgsql_admin');
+
+    try {
+        $tenant = Tenant::factory()->create(['name' => $tenantName]);
+
+        [$application, $eventType] = registerProducer($tenant);
+
+        $endpoint = forTenant(
+            $tenant,
+            fn (): Endpoint => subscribedEndpoint($application, $eventType, url: 'http://93.184.216.34/webhook'),
+        );
+
+        forTenant($tenant, function () use ($endpoint): void {
+            EndpointSecret::factory()->for($endpoint)->create();
+        });
+
+        $ids = forTenant($tenant, function () use ($application, $eventType, $endpoint, $deliveries): array {
+            return collect(range(1, $deliveries))
+                ->map(function () use ($application, $eventType, $endpoint): string {
+                    $message = Message::factory()->create([
+                        'application_id' => $application->id,
+                        'event_type_id' => $eventType->id,
+                    ]);
+
+                    return Delivery::factory()->for($message)->for($endpoint)->create()->public_id;
+                })
+                ->all();
+        });
+    } finally {
+        DB::setDefaultConnection('pgsql');
+    }
+
+    /** @var TestCase $test */
+    $test = test();
+
+    // After RefreshDatabase's own rollback, which was registered first — same
+    // ordering committedTenant() relies on.
+    $test->beforeApplicationDestroyed(function () use ($tenant): void {
+        DB::connection('pgsql_admin')->table('tenants')->where('id', $tenant->id)->delete();
+    });
+
+    return [$tenant, $endpoint, $ids];
 }
 
 /**
