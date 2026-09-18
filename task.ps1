@@ -5,7 +5,7 @@
 # invocations, so the behaviour lives in the compose files rather than here.
 # CI asserts that the two files expose the same targets.
 #
-# TARGETS: up down fresh logs test stan format check ci prod-up prod-down bench help
+# TARGETS: up down fresh logs test stan format contract check ci prod-up prod-down bench help
 
 [CmdletBinding()]
 param(
@@ -144,6 +144,17 @@ switch ($Target) {
         Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'backend', 'vendor/bin/phpstan', 'analyse', '--memory-limit=1G'))
     }
 
+    'contract' {
+        # Regenerates contract/openapi.json from the backend, then
+        # frontend/src/types/api.d.ts from it — the one path both containers mount
+        # at a sibling of their own base path (compose.yaml, config/scramble.php).
+        # scramble:export reads real column types, so unlike `format` this needs
+        # the database up; not run with --no-deps. Root for the same write-back
+        # reason `format` uses it.
+        Invoke-Step ($Dev + @('run', '--rm', '--user', 'root', 'backend', 'php', 'artisan', 'scramble:export'))
+        Invoke-Step ($Dev + @('run', '--rm', '--no-deps', '--user', 'root', 'frontend', 'npm', 'run', 'contract:types'))
+    }
+
     'check' {
         Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'backend', 'vendor/bin/pint', '--test'))
         Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'backend', 'vendor/bin/phpstan', 'analyse', '--memory-limit=1G'))
@@ -160,7 +171,9 @@ switch ($Target) {
         # this adds is the four assertions that until now existed only inside the
         # workflow — target parity, the absent baseline, the production image
         # contents and the scheduler singleton — plus the two lock files, which CI
-        # installs from and a working tree never re-reads.
+        # installs from and a working tree never re-reads, and the contract drift
+        # check (Step 12): `contract` regenerates in place, and a `git diff` catches
+        # an endpoint that changed without the committed contract following it.
         #
         # The scheduler assertion tears the compose project down. This is a
         # pre-push gate, not something to run beside a live development stack.
@@ -178,6 +191,8 @@ switch ($Target) {
         Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'frontend', 'npm', 'ci', '--dry-run', '--no-audit', '--no-fund'))
 
         & $PSCommandPath check
+        & $PSCommandPath contract
+        Invoke-Step @('git', 'diff', '--exit-code', 'contract/openapi.json', 'frontend/src/types/api.d.ts')
         & $PSCommandPath test
 
         Invoke-Step ($Prod + @('build'))
@@ -256,6 +271,7 @@ PostBox task runner
   .\task.ps1 test        run the backend test suite
   .\task.ps1 stan        run Larastan at max
   .\task.ps1 format      rewrite the backend to the Pint style
+  .\task.ps1 contract    regenerate contract/openapi.json and the frontend's generated types
   .\task.ps1 check       Pint, Larastan, ESLint, tsc and next build
   .\task.ps1 ci          every gate the workflow runs — the pre-push check
   .\task.ps1 prod-up     build and start the production profile, then assert health

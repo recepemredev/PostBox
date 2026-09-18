@@ -3,8 +3,8 @@
 # invocations, so the behaviour lives in the compose files rather than here.
 # CI asserts that the two files expose the same targets.
 
-# TARGETS: up down fresh logs test stan format check ci prod-up prod-down bench help
-.PHONY: up down fresh logs test stan format check ci prod-up prod-down bench help
+# TARGETS: up down fresh logs test stan format contract check ci prod-up prod-down bench help
+.PHONY: up down fresh logs test stan format contract check ci prod-up prod-down bench help
 .DEFAULT_GOAL := help
 
 DEV   := docker compose --profile dev
@@ -66,6 +66,14 @@ stan:
 format:
 	$(DEV) run --rm --no-deps --user $$(id -u):$$(id -g) backend vendor/bin/pint
 
+# Regenerates contract/openapi.json from the backend, then frontend/src/types/api.d.ts
+# from it — the one path both containers mount at a sibling of their own base path
+# (compose.yaml, config/scramble.php). scramble:export reads real column types, so
+# unlike `format` this needs the database up; not run with --no-deps.
+contract:
+	$(DEV) run --rm --user $$(id -u):$$(id -g) backend php artisan scramble:export
+	$(DEV) run --rm --no-deps --user $$(id -u):$$(id -g) frontend npm run contract:types
+
 check:
 	$(DEV) run --rm --no-deps backend vendor/bin/pint --test
 	$(DEV) run --rm --no-deps backend vendor/bin/phpstan analyse --memory-limit=1G
@@ -79,7 +87,9 @@ check:
 # the gate cannot drift from the targets it is made of. What this adds is the four
 # assertions that until now existed only inside the workflow — target parity, the
 # absent baseline, the production image contents and the scheduler singleton — plus
-# the two lock files, which CI installs from and a working tree never re-reads.
+# the two lock files, which CI installs from and a working tree never re-reads, and
+# the contract drift check (Step 12): `contract` regenerates in place, and a `git
+# diff` catches an endpoint that changed without the committed contract following it.
 #
 # The scheduler assertion tears the compose project down. This is a pre-push gate,
 # not something to run beside a live development stack.
@@ -92,6 +102,8 @@ ci:
 	$(DEV) run --rm --no-deps backend composer validate --strict
 	$(DEV) run --rm --no-deps frontend npm ci --dry-run --no-audit --no-fund
 	$(MAKE) check
+	$(MAKE) contract
+	git diff --exit-code contract/openapi.json frontend/src/types/api.d.ts
 	$(MAKE) test
 	$(PROD) build
 	bash docker/scripts/assert-production-images.sh
@@ -159,6 +171,7 @@ help:
 	@echo "  make test        run the backend test suite"
 	@echo "  make stan        run Larastan at max"
 	@echo "  make format      rewrite the backend to the Pint style"
+	@echo "  make contract    regenerate contract/openapi.json and the frontend's generated types"
 	@echo "  make check       Pint, Larastan, ESLint, tsc and next build"
 	@echo "  make ci          every gate the workflow runs — the pre-push check"
 	@echo "  make prod-up     build and start the production profile, then assert health"

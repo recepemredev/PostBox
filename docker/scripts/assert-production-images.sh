@@ -45,6 +45,7 @@ for path in \
     vendor/laravel/pint \
     vendor/phpstan \
     vendor/mockery \
+    vendor/dedoc \
     /usr/bin/composer
 do
     assert_absent "$BACKEND_IMAGE" "$path"
@@ -56,7 +57,8 @@ for path in \
     node_modules/eslint \
     node_modules/typescript \
     node_modules/tailwindcss \
-    node_modules/.bin/next
+    node_modules/.bin/next \
+    node_modules/openapi-typescript
 do
     assert_absent "$FRONTEND_IMAGE" "$path"
 done
