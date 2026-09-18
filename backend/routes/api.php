@@ -3,12 +3,20 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\ApiKeyController;
+use App\Http\Controllers\ApplicationController;
+use App\Http\Controllers\EndpointController;
+use App\Http\Controllers\EndpointSecretController;
+use App\Http\Controllers\EventTypeController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\MeController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\ReplayController;
 use App\Http\Controllers\SessionController;
 use App\Models\ApiKey;
+use App\Models\Application;
+use App\Models\Endpoint;
+use App\Models\EndpointSecret;
+use App\Models\EventType;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -52,6 +60,59 @@ Route::prefix('v1')->middleware('dashboard')->group(function (): void {
             ->name('api-keys.destroy');
 
         /*
+         * Catalog. Applications, endpoints, event types, subscriptions and
+         * signing secrets — every mutation here is written to the audit
+         * log by the action behind it (endpoint and secret changes only;
+         * CLAUDE.md names those two, not applications).
+         */
+        Route::get('applications', [ApplicationController::class, 'index'])
+            ->can('viewAny', Application::class)
+            ->name('applications.index');
+
+        Route::post('applications', [ApplicationController::class, 'store'])->name('applications.store');
+
+        Route::get('applications/{application}', [ApplicationController::class, 'show'])
+            ->can('view', 'application')
+            ->name('applications.show');
+
+        Route::patch('applications/{application}', [ApplicationController::class, 'update'])
+            ->name('applications.update');
+
+        Route::get('applications/{application}/endpoints', [EndpointController::class, 'index'])
+            ->can('viewAny', Endpoint::class)
+            ->name('applications.endpoints.index');
+
+        Route::post('applications/{application}/endpoints', [EndpointController::class, 'store'])
+            ->name('applications.endpoints.store');
+
+        Route::get('endpoints/{endpoint}', [EndpointController::class, 'show'])
+            ->can('view', 'endpoint')
+            ->name('endpoints.show');
+
+        Route::patch('endpoints/{endpoint}', [EndpointController::class, 'update'])
+            ->name('endpoints.update');
+
+        Route::put('endpoints/{endpoint}/subscriptions', [EndpointController::class, 'syncSubscriptions'])
+            ->name('endpoints.subscriptions.sync');
+
+        Route::get('event-types', [EventTypeController::class, 'index'])
+            ->can('viewAny', EventType::class)
+            ->name('event-types.index');
+
+        Route::post('event-types', [EventTypeController::class, 'store'])->name('event-types.store');
+
+        Route::get('endpoints/{endpoint}/secrets', [EndpointSecretController::class, 'index'])
+            ->can('viewAny', EndpointSecret::class)
+            ->name('endpoints.secrets.index');
+
+        Route::post('endpoints/{endpoint}/secrets', [EndpointSecretController::class, 'store'])
+            ->name('endpoints.secrets.store');
+
+        Route::delete('endpoints/{endpoint}/secrets/{secret}', [EndpointSecretController::class, 'destroy'])
+            ->can('delete', 'secret')
+            ->name('endpoints.secrets.destroy');
+
+        /*
          * Recovery. An operator's own action, so it rides the session
          * credential rather than the ingest surface's API key — the same
          * distinction Identity draws between a person and a system (D37) —
@@ -65,6 +126,14 @@ Route::prefix('v1')->middleware('dashboard')->group(function (): void {
 
             Route::post('endpoints/{endpoint}/replays', [ReplayController::class, 'range'])
                 ->name('replays.range');
+
+            /*
+             * D76's test event: the ordinary ingest path, so it sits behind
+             * `governor` exactly like a producer's own publish — one
+             * rate-limit token, one quota unit, regardless of who is asking.
+             */
+            Route::post('endpoints/{endpoint}/test-events', [EndpointController::class, 'sendTestEvent'])
+                ->name('endpoints.test-events.store');
         });
     });
 });

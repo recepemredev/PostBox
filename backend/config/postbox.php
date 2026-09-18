@@ -213,6 +213,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Endpoint secrets
+    |--------------------------------------------------------------------------
+    |
+    | Issuing a new secret is also how an endpoint rotates: whatever secret is
+    | currently live is not revoked outright — it is given an expiry
+    | rotation_overlap_hours out, so a consumer that has not yet cut over to
+    | the new secret still verifies against the old one during the window.
+    | Signature::sign() puts every secret Expirable::current() still returns
+    | into the PostBox-Signature header, which is what makes the overlap real
+    | rather than aspirational.
+    |
+    */
+    'secrets' => [
+        'rotation_overlap_hours' => (int) env('POSTBOX_SECRET_ROTATION_OVERLAP_HOURS', 24),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Circuit breaker
     |--------------------------------------------------------------------------
     |

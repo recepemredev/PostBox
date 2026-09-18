@@ -32,6 +32,10 @@ use Illuminate\Support\Carbon;
  * @property Carbon $updated_at
  * @property-read Application $application
  * @property-read EndpointCircuitBreaker|null $breaker
+ * @property-read int $active_secrets_count from EndpointController's own
+ *                aliased withCount('secrets as active_secrets_count') —
+ *                Larastan's Laravel plugin only infers the plain,
+ *                unaliased form of that call, not this one
  */
 final class Endpoint extends Model
 {
