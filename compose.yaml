@@ -41,6 +41,13 @@ x-php: &php
     - backend_vendor:/var/www/html/vendor
     - backend_bootstrap_cache:/var/www/html/bootstrap/cache
     - backend_storage:/var/www/html/storage
+    # A sibling of the backend's own base path (config/scramble.php resolves
+    # `export_path` through `base_path('../contract/...')`), exactly like the
+    # frontend's `/contract` sits beside its own `/app` (Step 12). Different mount
+    # points because the two images nest their app root at a different depth
+    # (`/var/www/html` vs `/app`); `..` is computed from each one's own base path
+    # rather than assumed to be the same string in both.
+    - ./contract:/var/www/contract
   depends_on: *schema-ready
 
 x-php-healthcheck: &php-healthcheck
@@ -138,6 +145,8 @@ services:
     volumes:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
+      # Read-only: the frontend consumes the contract, it never produces it.
+      - ./contract:/contract:ro
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:3000"]
       interval: 15s

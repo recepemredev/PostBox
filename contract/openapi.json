@@ -1,0 +1,1857 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "PostBox",
+        "version": "v1",
+        "description": "PostBox \u2014 self-hosted, multi-tenant webhook delivery gateway. Outbound delivery only."
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8080/api"
+        }
+    ],
+    "security": [
+        {
+            "bearerApiKey": []
+        },
+        {
+            "sessionCookie": []
+        }
+    ],
+    "paths": {
+        "/v1/csrf-cookie": {
+            "get": {
+                "operationId": "csrf-cookie",
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    }
+                },
+                "security": []
+            }
+        },
+        "/v1/api-keys": {
+            "get": {
+                "operationId": "api-keys.index",
+                "summary": "Paginated because every list in this application is. The global scope and\nthe database policy both restrict it to the current tenant; neither is\nmentioned here, which is the point of putting them where they are",
+                "tags": [
+                    "ApiKey"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `ApiKeyResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/ApiKeyResource"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "api-keys.store",
+                "tags": [
+                    "ApiKey"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreApiKeyRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`IssuedApiKeyResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/IssuedApiKeyResource"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
+        "/v1/api-keys/{apiKey}": {
+            "delete": {
+                "operationId": "api-keys.destroy",
+                "summary": "A key from another tenant does not reach this method: the route binding\nresolves it through the tenant scope, so the answer is 404 rather than 403.\nWhether a key exists elsewhere is not this tenant's business",
+                "tags": [
+                    "ApiKey"
+                ],
+                "parameters": [
+                    {
+                        "name": "apiKey",
+                        "in": "path",
+                        "required": true,
+                        "description": "The api key public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
+        "/health": {
+            "get": {
+                "operationId": "health",
+                "tags": [
+                    "Health"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Every dependency probe succeeded.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "enum": [
+                                                "ok",
+                                                "degraded"
+                                            ]
+                                        },
+                                        "checked_at": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        },
+                                        "duration_ms": {
+                                            "type": "integer"
+                                        },
+                                        "checks": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "name": {
+                                                        "type": "string",
+                                                        "description": "database, redis, queue or migrations."
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "ok",
+                                                            "degraded"
+                                                        ]
+                                                    },
+                                                    "duration_ms": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "name",
+                                                    "status",
+                                                    "duration_ms"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "status",
+                                        "checked_at",
+                                        "duration_ms",
+                                        "checks"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "At least one dependency (database, Redis, the queue or pending migrations) failed its probe.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "enum": [
+                                                "ok",
+                                                "degraded"
+                                            ]
+                                        },
+                                        "checked_at": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        },
+                                        "duration_ms": {
+                                            "type": "integer"
+                                        },
+                                        "checks": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "name": {
+                                                        "type": "string",
+                                                        "description": "database, redis, queue or migrations."
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "ok",
+                                                            "degraded"
+                                                        ]
+                                                    },
+                                                    "duration_ms": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "name",
+                                                    "status",
+                                                    "duration_ms"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "status",
+                                        "checked_at",
+                                        "duration_ms",
+                                        "checks"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/v1/me": {
+            "get": {
+                "operationId": "me",
+                "tags": [
+                    "Me"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`IdentityResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/IdentityResource"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
+        "/v1/apps/{application}/messages": {
+            "post": {
+                "operationId": "messages.store",
+                "description": "A replay answers 200 rather than 201, with a header saying so: the body is\nthe original message, byte for byte, and nothing was created to produce it.",
+                "summary": "The application is resolved through the tenant scope by route model\nbinding, so one belonging to another tenant is answered with 404 and never\nreaches this method",
+                "tags": [
+                    "Message"
+                ],
+                "parameters": [
+                    {
+                        "name": "application",
+                        "in": "path",
+                        "required": true,
+                        "description": "The application public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "description": "An optional key scoped to this tenant. Replaying it with an identical body returns the original result unchanged (200, Idempotent-Replay: true); a different body answers 409.",
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^[\\x21-\\x7e]+$",
+                            "maxLength": 255
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublishMessageRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Accepted: this request produced a new record.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResource"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "description": "The token bucket capacity for this tenant.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Remaining": {
+                                "description": "Tokens left in the current bucket.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Reset": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Limit": {
+                                "description": "The cumulative quota for the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Remaining": {
+                                "description": "Quota left in the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Reset": {
+                                "description": "Seconds until the current billing period resets.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "Idempotent replay: an identical earlier request already produced this result.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResource"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Idempotent-Replay": {
+                                "description": "Present, and always \"true\", only on the replayed response.",
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true"
+                                    ]
+                                }
+                            },
+                            "RateLimit-Limit": {
+                                "description": "The token bucket capacity for this tenant.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Remaining": {
+                                "description": "Tokens left in the current bucket.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Reset": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Limit": {
+                                "description": "The cumulative quota for the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Remaining": {
+                                "description": "Quota left in the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Reset": {
+                                "description": "Seconds until the current billing period resets.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "This Idempotency-Key was already used for a request with a different body.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The rate limit for this tenant has been exceeded.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Limit": {
+                                "description": "The token bucket capacity for this tenant.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Remaining": {
+                                "description": "Tokens left in the current bucket.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Reset": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Limit": {
+                                "description": "The cumulative quota for the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Remaining": {
+                                "description": "Quota left in the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Reset": {
+                                "description": "Seconds until the current billing period resets.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "This tenant's quota for the current billing period has been exhausted.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "description": "The token bucket capacity for this tenant.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Remaining": {
+                                "description": "Tokens left in the current bucket.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Reset": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Limit": {
+                                "description": "The cumulative quota for the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Remaining": {
+                                "description": "Quota left in the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Reset": {
+                                "description": "Seconds until the current billing period resets.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerApiKey": []
+                    }
+                ]
+            }
+        },
+        "/v1/messages/{message}/replay": {
+            "post": {
+                "operationId": "replays.message",
+                "summary": "The message is resolved through the tenant scope by route model\nbinding, so one belonging to another tenant is answered with 404 and\nnever reaches this method \u2014 the same guarantee MessageController's own\n{application} parameter carries",
+                "tags": [
+                    "Replay"
+                ],
+                "parameters": [
+                    {
+                        "name": "message",
+                        "in": "path",
+                        "required": true,
+                        "description": "The message public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "description": "An optional key scoped to this tenant. Replaying it with an identical body returns the original result unchanged (200, Idempotent-Replay: true); a different body answers 409.",
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^[\\x21-\\x7e]+$",
+                            "maxLength": 255
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReplayMessageRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Accepted: this request produced a new record.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReplayResource"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "description": "The token bucket capacity for this tenant.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Remaining": {
+                                "description": "Tokens left in the current bucket.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Reset": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Limit": {
+                                "description": "The cumulative quota for the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Remaining": {
+                                "description": "Quota left in the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Reset": {
+                                "description": "Seconds until the current billing period resets.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No original delivery exists for this message and endpoint.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "200": {
+                        "description": "Idempotent replay: an identical earlier request already produced this result.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReplayResource"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Idempotent-Replay": {
+                                "description": "Present, and always \"true\", only on the replayed response.",
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true"
+                                    ]
+                                }
+                            },
+                            "RateLimit-Limit": {
+                                "description": "The token bucket capacity for this tenant.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Remaining": {
+                                "description": "Tokens left in the current bucket.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Reset": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Limit": {
+                                "description": "The cumulative quota for the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Remaining": {
+                                "description": "Quota left in the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Reset": {
+                                "description": "Seconds until the current billing period resets.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "This Idempotency-Key was already used for a request with a different body.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The rate limit for this tenant has been exceeded.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Limit": {
+                                "description": "The token bucket capacity for this tenant.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Remaining": {
+                                "description": "Tokens left in the current bucket.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Reset": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Limit": {
+                                "description": "The cumulative quota for the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Remaining": {
+                                "description": "Quota left in the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Reset": {
+                                "description": "Seconds until the current billing period resets.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "This tenant's quota for the current billing period has been exhausted.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "description": "The token bucket capacity for this tenant.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Remaining": {
+                                "description": "Tokens left in the current bucket.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Reset": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Limit": {
+                                "description": "The cumulative quota for the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Remaining": {
+                                "description": "Quota left in the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Reset": {
+                                "description": "Seconds until the current billing period resets.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
+        "/v1/endpoints/{endpoint}/replays": {
+            "post": {
+                "operationId": "replays.range",
+                "summary": "Bounded and paginated: at most postbox.replay.max_deliveries_per_request\nexhausted deliveries per call, with next_cursor carrying the rest \u2014 an\noperator recovering a large outage calls this again with that cursor\nrather than this action holding one transaction open for the whole\nwindow",
+                "tags": [
+                    "Replay"
+                ],
+                "parameters": [
+                    {
+                        "name": "endpoint",
+                        "in": "path",
+                        "required": true,
+                        "description": "The endpoint public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "description": "An optional key scoped to this tenant. Replaying it with an identical body returns the original result unchanged (200, Idempotent-Replay: true); a different body answers 409.",
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^[\\x21-\\x7e]+$",
+                            "maxLength": 255
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReplayRangeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Accepted: this request produced a new record.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReplayResource"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "description": "The token bucket capacity for this tenant.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Remaining": {
+                                "description": "Tokens left in the current bucket.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Reset": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Limit": {
+                                "description": "The cumulative quota for the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Remaining": {
+                                "description": "Quota left in the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Reset": {
+                                "description": "Seconds until the current billing period resets.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No original delivery exists for this message and endpoint.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "200": {
+                        "description": "Idempotent replay: an identical earlier request already produced this result.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReplayResource"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Idempotent-Replay": {
+                                "description": "Present, and always \"true\", only on the replayed response.",
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true"
+                                    ]
+                                }
+                            },
+                            "RateLimit-Limit": {
+                                "description": "The token bucket capacity for this tenant.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Remaining": {
+                                "description": "Tokens left in the current bucket.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Reset": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Limit": {
+                                "description": "The cumulative quota for the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Remaining": {
+                                "description": "Quota left in the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Reset": {
+                                "description": "Seconds until the current billing period resets.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "This Idempotency-Key was already used for a request with a different body.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The rate limit for this tenant has been exceeded.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Limit": {
+                                "description": "The token bucket capacity for this tenant.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Remaining": {
+                                "description": "Tokens left in the current bucket.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Reset": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Limit": {
+                                "description": "The cumulative quota for the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Remaining": {
+                                "description": "Quota left in the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Reset": {
+                                "description": "Seconds until the current billing period resets.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "This tenant's quota for the current billing period has been exhausted.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "description": "The token bucket capacity for this tenant.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Remaining": {
+                                "description": "Tokens left in the current bucket.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Reset": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Limit": {
+                                "description": "The cumulative quota for the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Remaining": {
+                                "description": "Quota left in the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Reset": {
+                                "description": "Seconds until the current billing period resets.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
+        "/v1/login": {
+            "post": {
+                "operationId": "login",
+                "tags": [
+                    "Session"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`IdentityResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/IdentityResource"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                },
+                "security": []
+            }
+        },
+        "/v1/logout": {
+            "post": {
+                "operationId": "logout",
+                "tags": [
+                    "Session"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerApiKey": {
+                "type": "http",
+                "description": "A tenant-scoped API key, shown once on creation. Sent as `Authorization: Bearer pbk_...` on the ingest surface only.",
+                "scheme": "bearer"
+            },
+            "sessionCookie": {
+                "type": "apiKey",
+                "description": "The dashboard session, obtained by logging in through POST /api/v1/login. Requests also need the X-XSRF-TOKEN header from the cookie GET /api/v1/csrf-cookie sets.",
+                "in": "cookie",
+                "name": "postbox-session"
+            }
+        },
+        "schemas": {
+            "ApiKeyResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "last_four": {
+                        "type": "string"
+                    },
+                    "last_used_at": {
+                        "type": "string"
+                    },
+                    "expires_at": {
+                        "type": "string"
+                    },
+                    "revoked_at": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "last_four",
+                    "last_used_at",
+                    "expires_at",
+                    "revoked_at",
+                    "created_at"
+                ],
+                "title": "ApiKeyResource"
+            },
+            "HealthResource": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string"
+                    },
+                    "checked_at": {
+                        "type": "string"
+                    },
+                    "duration_ms": {
+                        "type": "integer"
+                    },
+                    "checks": {
+                        "type": "array",
+                        "items": {}
+                    }
+                },
+                "required": [
+                    "status",
+                    "checked_at",
+                    "duration_ms",
+                    "checks"
+                ],
+                "title": "HealthResource"
+            },
+            "IdentityResource": {
+                "type": "object",
+                "properties": {
+                    "user": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "email": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "name",
+                            "email"
+                        ]
+                    },
+                    "tenant": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "name"
+                        ]
+                    },
+                    "permissions": {
+                        "type": "array",
+                        "description": "The client renders from this list rather than from a role name, for\nthe same reason the policies read it: the mapping from role to\npermission is data and may change without the client changing.",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "user",
+                    "tenant",
+                    "permissions"
+                ],
+                "title": "IdentityResource"
+            },
+            "IssuedApiKeyResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "last_four": {
+                        "type": "string"
+                    },
+                    "last_used_at": {
+                        "type": "string"
+                    },
+                    "expires_at": {
+                        "type": "string"
+                    },
+                    "revoked_at": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    },
+                    "token": {
+                        "type": "string",
+                        "description": "Shown once. It is not stored in this shape anywhere, so a client\nthat loses it here has to create another key."
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "last_four",
+                    "last_used_at",
+                    "expires_at",
+                    "revoked_at",
+                    "created_at",
+                    "token"
+                ],
+                "title": "IssuedApiKeyResource"
+            },
+            "LoginRequest": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "password": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "email",
+                    "password"
+                ],
+                "title": "LoginRequest"
+            },
+            "MessageResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "event_type": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "event_type",
+                    "created_at"
+                ],
+                "title": "MessageResource"
+            },
+            "PublishMessageRequest": {
+                "type": "object",
+                "description": "There is no authorize() here, and the omission is deliberate. A policy answers\n\"may this actor do this to this resource\", and the ingest surface has no actor:\nan API key produces a tenant, not a person. What stands in for authorization is\nthe tenant boundary itself \u2014 the application in the route resolves through the\ntenant scope, so another tenant's application is a 404 before this class is\never constructed, and the event type below is only findable within the tenant\nfor the same reason.",
+                "properties": {
+                    "event_type": {
+                        "type": "string",
+                        "description": "An event type is registered before it can be published, rather than\ncreated here: a typo would otherwise become a permanent event type\nthat no endpoint is subscribed to, and the message would be accepted\nand delivered nowhere. The lookup needs no tenant predicate of its\nown \u2014 the application connects as a role Row Level Security applies\nto, so it can only ever match a row in the current tenant."
+                    },
+                    "payload": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "minItems": 1
+                    }
+                },
+                "required": [
+                    "event_type",
+                    "payload"
+                ],
+                "title": "PublishMessageRequest"
+            },
+            "ReplayMessageRequest": {
+                "type": "object",
+                "properties": {
+                    "endpoint": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Narrows the replay to one of the message's original\nsubscribers. Absent, every endpoint the message's own fan-out\nreached is replayed. The lookup needs no tenant predicate of\nits own, the same reason PublishMessageRequest's event_type\nrule needs none: the application connects as a role Row Level\nSecurity applies to, so it can only ever match this tenant's\nown endpoint."
+                    }
+                },
+                "title": "ReplayMessageRequest"
+            },
+            "ReplayRangeRequest": {
+                "type": "object",
+                "properties": {
+                    "from": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "to": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "cursor": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Opaque; a caller only ever carries one back from a previous\nresponse, never composes one by hand."
+                    }
+                },
+                "required": [
+                    "from",
+                    "to"
+                ],
+                "title": "ReplayRangeRequest"
+            },
+            "ReplayResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "The replay receipt, rpl_..."
+                    },
+                    "message_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Set for a single-message replay."
+                    },
+                    "endpoint_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Set for a single-message replay to one endpoint, or a range replay."
+                    },
+                    "range_from": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time",
+                        "description": "Set for a range replay."
+                    },
+                    "range_to": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time",
+                        "description": "Set for a range replay."
+                    },
+                    "delivery_count": {
+                        "type": "integer"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "next_cursor": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Present only for a range replay \u2014 absent (not null) for a single message, since pagination never applied to it in the first place."
+                    }
+                },
+                "required": [
+                    "id",
+                    "message_id",
+                    "endpoint_id",
+                    "range_from",
+                    "range_to",
+                    "delivery_count",
+                    "created_at"
+                ],
+                "title": "ReplayResource"
+            },
+            "StoreApiKeyRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "expires_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time",
+                        "description": "Optional, because most keys are meant to outlive the person who\ncreated them; bounded when given, because a key that expires in the\npast is a support ticket rather than a credential."
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "title": "StoreApiKeyRequest"
+            }
+        },
+        "responses": {
+            "AuthorizationException": {
+                "description": "Authorization error",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error overview."
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    }
+                }
+            },
+            "ValidationException": {
+                "description": "Validation error",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Errors overview."
+                                },
+                                "errors": {
+                                    "type": "object",
+                                    "description": "A detailed description of each field that failed validation.",
+                                    "additionalProperties": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            },
+                            "required": [
+                                "message",
+                                "errors"
+                            ]
+                        }
+                    }
+                }
+            },
+            "AuthenticationException": {
+                "description": "Unauthenticated",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error overview."
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    }
+                }
+            },
+            "ModelNotFoundException": {
+                "description": "Not found",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error overview."
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
