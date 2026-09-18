@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\MessageSource;
 use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\HasPublicId;
 use Database\Factories\MessageFactory;
@@ -26,6 +27,7 @@ use Illuminate\Support\Carbon;
  * @property int $application_id
  * @property int $event_type_id
  * @property array<string, mixed> $payload
+ * @property MessageSource $source
  * @property Carbon $created_at
  * @property Carbon|null $updated_at
  * @property-read Application $application
@@ -37,7 +39,7 @@ final class Message extends Model
     use BelongsToTenant, HasFactory, HasPublicId;
 
     /** @var list<string> */
-    protected $fillable = ['application_id', 'event_type_id', 'payload'];
+    protected $fillable = ['application_id', 'event_type_id', 'payload', 'source'];
 
     public static function publicIdPrefix(): string
     {
@@ -75,6 +77,7 @@ final class Message extends Model
     {
         return [
             'payload' => 'array',
+            'source' => MessageSource::class,
         ];
     }
 }

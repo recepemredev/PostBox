@@ -6,9 +6,11 @@ namespace App\Actions\Ingest;
 
 use App\Enums\DeliveryStatus;
 use App\Enums\EndpointStatus;
+use App\Enums\MessageSource;
 use App\Exceptions\IdempotencyConflict;
 use App\Models\Application;
 use App\Models\Delivery;
+use App\Models\Endpoint;
 use App\Models\EndpointSubscription;
 use App\Models\EventType;
 use App\Models\IdempotencyKey;
@@ -39,12 +41,19 @@ final readonly class PublishMessage
     /**
      * @param  array<array-key, mixed>  $payload  opaque to PostBox — it is stored
      *                                            and forwarded, never inspected
+     * @param  Endpoint|null  $only  narrows the fan-out to one of the
+     *                               application's own endpoints — the dashboard's
+     *                               test event (D76) is the one caller that ever
+     *                               passes this; a producer's own publish always
+     *                               reaches every subscriber
      */
     public function handle(
         Application $application,
         string $eventType,
         array $payload,
         ?string $idempotencyKey = null,
+        MessageSource $source = MessageSource::Api,
+        ?Endpoint $only = null,
     ): PublishedMessage {
         /*
          * Already proven to exist by the form request, and re-read here rather
@@ -55,7 +64,7 @@ final readonly class PublishMessage
 
         if ($idempotencyKey === null) {
             return new PublishedMessage(
-                DB::transaction(fn (): Message => $this->write($application, $type, $payload)),
+                DB::transaction(fn (): Message => $this->write($application, $type, $payload, $source, $only)),
                 replayed: false,
             );
         }
@@ -68,8 +77,8 @@ final readonly class PublishMessage
         }
 
         try {
-            $message = DB::transaction(function () use ($application, $type, $payload, $idempotencyKey, $fingerprint): Message {
-                $message = $this->write($application, $type, $payload);
+            $message = DB::transaction(function () use ($application, $type, $payload, $idempotencyKey, $fingerprint, $source, $only): Message {
+                $message = $this->write($application, $type, $payload, $source, $only);
 
                 $this->reserve($idempotencyKey, $fingerprint, $message);
 
@@ -101,15 +110,21 @@ final readonly class PublishMessage
      *
      * @param  array<array-key, mixed>  $payload
      */
-    private function write(Application $application, EventType $eventType, array $payload): Message
-    {
+    private function write(
+        Application $application,
+        EventType $eventType,
+        array $payload,
+        MessageSource $source,
+        ?Endpoint $only,
+    ): Message {
         $message = Message::create([
             'application_id' => $application->id,
             'event_type_id' => $eventType->id,
             'payload' => $payload,
+            'source' => $source,
         ]);
 
-        $this->openDeliveries($message, $application, $eventType);
+        $this->openDeliveries($message, $application, $eventType, $only);
 
         // The resource reads the event type's name, and lazy loading throws
         // outside production. It is already in hand, so this costs nothing.
@@ -124,19 +139,25 @@ final readonly class PublishMessage
      * which is the order the unique index on (event_type_id, endpoint_id) was
      * built for.
      *
+     * $only narrows that same query to one endpoint rather than opening a
+     * second, parallel path to the same effect — the fan-out rule itself
+     * (subscribed, and switched on) is exactly as true for a test event as for
+     * a producer's own publish.
+     *
      * They are created one at a time rather than bulk inserted: a mass insert
      * bypasses the model, and both the tenant stamp and the public identifier are
      * model behaviour. Rebuilding either here would be a second definition of a
      * rule that already has one, for a loop whose length is the number of
      * endpoints an application has.
      */
-    private function openDeliveries(Message $message, Application $application, EventType $eventType): void
+    private function openDeliveries(Message $message, Application $application, EventType $eventType, ?Endpoint $only): void
     {
         $subscriptions = EndpointSubscription::query()
             ->where('event_type_id', $eventType->id)
             ->whereHas('endpoint', fn (Builder $endpoint): Builder => $endpoint
                 ->where('application_id', $application->id)
-                ->where('status', EndpointStatus::Enabled))
+                ->where('status', EndpointStatus::Enabled)
+                ->when($only !== null, fn (Builder $query): Builder => $query->where('id', $only?->id)))
             ->get();
 
         foreach ($subscriptions as $subscription) {

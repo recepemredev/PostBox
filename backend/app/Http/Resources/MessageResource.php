@@ -40,6 +40,7 @@ final class MessageResource extends JsonResource
         return [
             'id' => $this->resource->public_id,
             'event_type' => $this->resource->eventType->name,
+            'source' => $this->resource->source->value,
             'created_at' => self::utc($this->resource->created_at),
         ];
     }

@@ -97,6 +97,7 @@ it('returns a receipt, and nothing about the payload or the deliveries', functio
     $response->assertCreated()->assertExactJson([
         'id' => $message->public_id,
         'event_type' => 'invoice.paid',
+        'source' => 'api',
         'created_at' => $message->created_at->utc()->toIso8601ZuluString(),
     ]);
 
