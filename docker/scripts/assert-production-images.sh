@@ -58,7 +58,10 @@ for path in \
     node_modules/typescript \
     node_modules/tailwindcss \
     node_modules/.bin/next \
-    node_modules/openapi-typescript
+    node_modules/openapi-typescript \
+    node_modules/vitest \
+    node_modules/@testing-library \
+    node_modules/jsdom
 do
     assert_absent "$FRONTEND_IMAGE" "$path"
 done
