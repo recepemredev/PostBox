@@ -105,6 +105,15 @@ jobs:
       - name: Pest
         run: vendor/bin/pest --colors=always
 
+      - name: Regenerate the OpenAPI contract
+        run: php artisan scramble:export
+
+      - name: Assert the committed contract has no drift
+        # config/scramble.php's export_path is base_path('../contract/openapi.json')
+        # — from backend/, that is the repository's own contract/ directory. An
+        # endpoint added without regenerating the contract fails here.
+        run: git diff --exit-code ../contract/openapi.json
+
   frontend:
     name: Frontend — ESLint, tsc, build
     runs-on: ubuntu-latest
@@ -126,6 +135,14 @@ jobs:
 
       - name: ESLint
         run: npm run lint
+
+      - name: Regenerate the contract's TypeScript types
+        run: npm run contract:types
+
+      - name: Assert the committed generated types have no drift
+        # Regenerated from the committed contract/openapi.json — this job never
+        # sees the backend job's own regeneration, only what is checked out.
+        run: git diff --exit-code src/types/api.d.ts
 
       - name: TypeScript
         run: npm run typecheck
