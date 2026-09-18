@@ -128,8 +128,8 @@ switch ($Target) {
     }
 
     'test' {
-        # The frontend has no test suite until the dashboard exists (Step 13).
         Invoke-Step ($Dev + @('run', '--rm', 'backend', 'vendor/bin/pest', '--colors=always'))
+        Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'frontend', 'npm', 'run', 'test'))
     }
 
     'format' {

@@ -52,9 +52,9 @@ fresh:
 logs:
 	$(DEV) logs --follow $(filter-out $@,$(MAKECMDGOALS))
 
-# The frontend has no test suite until the dashboard exists (Step 13).
 test:
 	$(DEV) run --rm backend vendor/bin/pest --colors=always
+	$(DEV) run --rm --no-deps frontend npm run test
 
 stan:
 	$(DEV) run --rm --no-deps backend vendor/bin/phpstan analyse --memory-limit=1G

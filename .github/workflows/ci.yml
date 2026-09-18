@@ -147,6 +147,9 @@ jobs:
       - name: TypeScript
         run: npm run typecheck
 
+      - name: Vitest
+        run: npm run test
+
       - name: Next build
         run: npm run build
 

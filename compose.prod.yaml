@@ -52,6 +52,11 @@ services:
     volumes: !reset []
     environment:
       NODE_ENV: production
+      # Server-only (never NEXT_PUBLIC_): every Server Component, Server
+      # Action and Route Handler in this app reaches the backend through
+      # nginx, the same single origin the browser itself uses (D110) — this
+      # value is never bundled into client JavaScript.
+      POSTBOX_SERVER_API_URL: http://nginx:8080/api
     restart: unless-stopped
 
   nginx:
