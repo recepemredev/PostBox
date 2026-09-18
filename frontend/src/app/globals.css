@@ -1,25 +1,133 @@
 @import "tailwindcss";
 
 /*
- * Minimal by design. The token set, dark mode and the four screen states are
- * defined in .claude/docs/design.md and land with the dashboard in Step 13.
- * No web font is loaded: a build-time fetch to a font CDN would make the
- * production image build depend on a third party.
+ * The whole token set `.claude/docs/design.md` names, defined once here and
+ * consumed everywhere as Tailwind utilities (bg-surface, text-text-muted,
+ * border-border, bg-success-bg/text-success-fg, rounded-control, ...). Both
+ * themes are defined at token level — no component branches on
+ * prefers-color-scheme itself, it only ever reads a token.
+ *
+ * No web font: a build-time fetch to a font CDN would make the production
+ * image build depend on a third party, so both stacks below are system fonts.
  */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #ffffff;
+  --surface: #f7f8fa;
+  --surface-raised: #ffffff;
+  --border: #e2e5ea;
+
+  --text: #14171f;
+  --text-muted: #565d6d;
+  --text-subtle: #8b93a1;
+
+  /* Exactly one accent. It marks the primary action on a screen and nothing else. */
+  --accent: #2f5fe0;
+  --accent-fg: #ffffff;
+
+  /* State colour is reserved for delivery state and stays consistent everywhere. */
+  --success-bg: #e6f5ec;
+  --success-fg: #187a43;
+  --warning-bg: #fdf1dd;
+  --warning-fg: #96590a;
+  --danger-bg: #fbe9e9;
+  --danger-fg: #b3261e;
+  --info-bg: #e8f0fe;
+  --info-fg: #2352b8;
+  --neutral-bg: #eceef1;
+  --neutral-fg: #565d6d;
+
+  /* A 4px scale. No one-off margins in a component. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Two radii: the control an operator clicks, the container it sits in. */
+  --radius-control: 6px;
+  --radius-container: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d0f13;
+    --surface: #14171d;
+    --surface-raised: #1a1e26;
+    --border: #2a2f39;
+
+    --text: #eceef1;
+    --text-muted: #9aa1b0;
+    --text-subtle: #6b7280;
+
+    --accent: #6f95f5;
+    --accent-fg: #0d0f13;
+
+    --success-bg: #123321;
+    --success-fg: #5bd992;
+    --warning-bg: #3a2a0c;
+    --warning-fg: #f0b23e;
+    --danger-bg: #3a1616;
+    --danger-fg: #f28b85;
+    --info-bg: #16233f;
+    --info-fg: #8fb4fb;
+    --neutral-bg: #232630;
+    --neutral-fg: #9aa1b0;
+  }
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-subtle: var(--text-subtle);
+
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+
+  --color-success-bg: var(--success-bg);
+  --color-success-fg: var(--success-fg);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-fg: var(--warning-fg);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-fg: var(--danger-fg);
+  --color-info-bg: var(--info-bg);
+  --color-info-fg: var(--info-fg);
+  --color-neutral-bg: var(--neutral-bg);
+  --color-neutral-fg: var(--neutral-fg);
+
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-8: var(--space-8);
+
+  --radius-control: var(--radius-control);
+  --radius-container: var(--radius-container);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Consolas", monospace;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+
+/*
+ * Tabular data — identifiers, timestamps, durations — uses this so columns
+ * align, per design.md's density rule.
+ */
+.font-tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
