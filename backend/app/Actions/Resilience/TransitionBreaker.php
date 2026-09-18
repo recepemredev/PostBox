@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Resilience;
 
+use App\Actions\Audit\RecordAuditEntry;
 use App\Enums\BreakerState;
 use App\Exceptions\InvalidBreakerTransition;
-use App\Models\AuditLog;
 use App\Models\Endpoint;
 use App\Models\EndpointCircuitBreaker;
 use Carbon\CarbonImmutable;
@@ -28,6 +28,8 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class TransitionBreaker
 {
+    public function __construct(private RecordAuditEntry $auditor) {}
+
     /**
      * @return bool whether this call was the one that made the change
      */
@@ -116,13 +118,13 @@ final readonly class TransitionBreaker
 
     private function record(Endpoint $endpoint, BreakerState $from, BreakerState $to, CarbonImmutable $now): void
     {
-        AuditLog::create([
-            'action' => self::action($to),
-            'entity_type' => 'endpoint',
-            'entity_id' => $endpoint->id,
-            'entity_public_id' => $endpoint->public_id,
-            'changes' => ['state' => ['before' => $from->value, 'after' => $to->value]],
-        ]);
+        $this->auditor->handle(
+            action: self::action($to),
+            entityType: 'endpoint',
+            entityId: $endpoint->id,
+            entityPublicId: $endpoint->public_id,
+            changes: ['state' => ['before' => $from->value, 'after' => $to->value]],
+        );
     }
 
     private static function action(BreakerState $to): string
