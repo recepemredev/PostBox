@@ -19,4 +19,12 @@ enum PermissionCode: string
     case ApiKeyManage = 'api_key.manage';
 
     case DeliveryReplay = 'delivery.replay';
+
+    case CatalogRead = 'catalog.read';
+
+    case CatalogManage = 'catalog.manage';
+
+    case EndpointSecretManage = 'endpoint_secret.manage';
+
+    case EndpointTest = 'endpoint.test';
 }
