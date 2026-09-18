@@ -62,6 +62,176 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["applications.index"];
+        put?: never;
+        post: operations["applications.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/applications/{application}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A foreign tenant's application never reaches this method: route model
+         *     binding resolves it through the tenant scope, so the answer is 404
+         *     rather than 403
+         */
+        get: operations["applications.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["applications.update"];
+        trace?: never;
+    };
+    "/v1/applications/{application}/endpoints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Nested under the application whose endpoints these are; a foreign
+         *     tenant's application is already a 404 by the time this runs
+         */
+        get: operations["applications.endpoints.index"];
+        put?: never;
+        post: operations["applications.endpoints.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/endpoints/{endpoint}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["endpoints.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["endpoints.update"];
+        trace?: never;
+    };
+    "/v1/endpoints/{endpoint}/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["endpoints.subscriptions.sync"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/endpoints/{endpoint}/test-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * D76: the ordinary ingest path, narrowed to this one endpoint and
+         *     marked — not a second delivery mechanism. governor still applies
+         *     (routes/api.php), so this costs the tenant a rate-limit token and a
+         *     quota unit exactly like a producer's own publish
+         */
+        post: operations["endpoints.test-events.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/endpoints/{endpoint}/secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["endpoints.secrets.index"];
+        put?: never;
+        /**
+         * Issuing is how an endpoint rotates (App\Actions\Catalog\IssueEndpointSecret's
+         *     own docblock) — there is no separate rotate endpoint
+         */
+        post: operations["endpoints.secrets.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/endpoints/{endpoint}/secrets/{secret}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * A secret from another endpoint — even one in the same tenant — is a
+         *     404 here: the route names an endpoint and a secret together, and a
+         *     secret that does not belong to that endpoint is not this route's
+         *     resource, the same "a foreign id is 404, not 403" reasoning route
+         *     model binding already applies across tenants
+         */
+        delete: operations["endpoints.secrets.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/event-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["event-types.index"];
+        put?: never;
+        post: operations["event-types.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -208,6 +378,42 @@ export interface components {
             revoked_at: string;
             created_at: string;
         };
+        /** ApplicationResource */
+        ApplicationResource: {
+            id: string;
+            name: string;
+            endpoint_count: string;
+            created_at: string;
+        };
+        /** EndpointResource */
+        EndpointResource: {
+            id: string;
+            application_id: string;
+            name: string;
+            url: string;
+            status: string;
+            subscriptions: string[];
+            breaker: {
+                state: string;
+                state_changed_at: string;
+            } | null;
+            active_secret_count: number;
+            created_at: string;
+        };
+        /** EndpointSecretResource */
+        EndpointSecretResource: {
+            id: string;
+            last_four: string;
+            expires_at: string;
+            revoked_at: string;
+            created_at: string;
+        };
+        /** EventTypeResource */
+        EventTypeResource: {
+            name: string;
+            subscriber_count: string;
+            created_at: string;
+        };
         /** HealthResource */
         HealthResource: {
             status: string;
@@ -248,6 +454,20 @@ export interface components {
              */
             token: string;
         };
+        /** IssuedEndpointSecretResource */
+        IssuedEndpointSecretResource: {
+            id: string;
+            last_four: string;
+            expires_at: string;
+            revoked_at: string;
+            created_at: string;
+            /**
+             * @description Shown once. A client that loses it here has to issue
+             *     another secret — the row can decrypt its own value again,
+             *     but nothing in this API will ever hand it back out.
+             */
+            secret: string;
+        };
         /** LoginRequest */
         LoginRequest: {
             /** Format: email */
@@ -258,6 +478,7 @@ export interface components {
         MessageResource: {
             id: string;
             event_type: string;
+            source: string;
             created_at: string;
         };
         /**
@@ -331,6 +552,10 @@ export interface components {
             /** @description Present only for a range replay — absent (not null) for a single message, since pagination never applied to it in the first place. */
             next_cursor?: string | null;
         };
+        /** SendTestEventRequest */
+        SendTestEventRequest: {
+            event_type: string;
+        };
         /** StoreApiKeyRequest */
         StoreApiKeyRequest: {
             name: string;
@@ -341,6 +566,65 @@ export interface components {
              *     past is a support ticket rather than a credential.
              */
             expires_at?: string | null;
+        };
+        /** StoreApplicationRequest */
+        StoreApplicationRequest: {
+            /**
+             * @description Scoped to the current tenant by Row Level Security, the same
+             *     way PublishMessageRequest's event_type check needs no explicit
+             *     tenant predicate of its own.
+             */
+            name: string;
+        };
+        /** StoreEndpointRequest */
+        StoreEndpointRequest: {
+            name: string;
+            /** Format: uri */
+            url: string;
+        };
+        /** StoreEventTypeRequest */
+        StoreEventTypeRequest: {
+            /**
+             * @description Same shape the database CHECK constraint holds this table to
+             *     (2026_09_10_000008): lowercase, dotted, at most 100 characters.
+             */
+            name: string;
+        };
+        /** SyncSubscriptionsRequest */
+        SyncSubscriptionsRequest: {
+            event_types: string[];
+        };
+        /** TestEventResource */
+        TestEventResource: {
+            message: {
+                id: string;
+                event_type: string;
+                source: string;
+                created_at: string;
+            };
+            delivery_id: string;
+            delivery_status: string;
+        };
+        /** UpdateApplicationRequest */
+        UpdateApplicationRequest: {
+            name: string;
+        };
+        /** UpdateEndpointRequest */
+        UpdateEndpointRequest: {
+            /**
+             * @description Every field is a partial update: an operator flipping the
+             *     status switch should not have to resend the name and URL too.
+             */
+            name?: string;
+            /** Format: uri */
+            url?: string;
+            /**
+             * @description A plain 'in:' list rather than Rule::enum(): that helper
+             *     implements the older Rule contract, not ValidationRule, so it
+             *     does not fit the one shape every rule in this class carries.
+             * @enum {string}
+             */
+            status?: "enabled" | "disabled";
         };
     };
     responses: {
@@ -520,6 +804,621 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "applications.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `ApplicationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ApplicationResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "applications.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreApplicationRequest"];
+            };
+        };
+        responses: {
+            /** @description `ApplicationResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "applications.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The application public id */
+                application: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `ApplicationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "applications.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The application public id */
+                application: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateApplicationRequest"];
+            };
+        };
+        responses: {
+            /** @description `ApplicationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "applications.endpoints.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The application public id */
+                application: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `EndpointResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EndpointResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "applications.endpoints.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The application public id */
+                application: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreEndpointRequest"];
+            };
+        };
+        responses: {
+            /** @description `EndpointResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndpointResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "endpoints.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The endpoint public id */
+                endpoint: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `EndpointResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndpointResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "endpoints.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The endpoint public id */
+                endpoint: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateEndpointRequest"];
+            };
+        };
+        responses: {
+            /** @description `EndpointResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndpointResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "endpoints.subscriptions.sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The endpoint public id */
+                endpoint: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncSubscriptionsRequest"];
+            };
+        };
+        responses: {
+            /** @description `EndpointResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndpointResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "endpoints.test-events.store": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description An optional key scoped to this tenant. Replaying it with an identical body returns the original result unchanged (200, Idempotent-Replay: true); a different body answers 409. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description The endpoint public id */
+                endpoint: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendTestEventRequest"];
+            };
+        };
+        responses: {
+            /** @description Idempotent replay: an identical earlier request already produced this result. */
+            200: {
+                headers: {
+                    /** @description Present, and always "true", only on the replayed response. */
+                    "Idempotent-Replay"?: "true";
+                    /** @description The token bucket capacity for this tenant. */
+                    "RateLimit-Limit"?: number;
+                    /** @description Tokens left in the current bucket. */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the bucket next refills. */
+                    "RateLimit-Reset"?: number;
+                    /** @description The cumulative quota for the current billing period. */
+                    "Quota-Limit"?: number;
+                    /** @description Quota left in the current billing period. */
+                    "Quota-Remaining"?: number;
+                    /** @description Seconds until the current billing period resets. */
+                    "Quota-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestEventResource"];
+                };
+            };
+            /** @description Accepted: this request produced a new record. */
+            201: {
+                headers: {
+                    /** @description The token bucket capacity for this tenant. */
+                    "RateLimit-Limit"?: number;
+                    /** @description Tokens left in the current bucket. */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the bucket next refills. */
+                    "RateLimit-Reset"?: number;
+                    /** @description The cumulative quota for the current billing period. */
+                    "Quota-Limit"?: number;
+                    /** @description Quota left in the current billing period. */
+                    "Quota-Remaining"?: number;
+                    /** @description Seconds until the current billing period resets. */
+                    "Quota-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestEventResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description This tenant's quota for the current billing period has been exhausted. */
+            402: {
+                headers: {
+                    /** @description The token bucket capacity for this tenant. */
+                    "RateLimit-Limit"?: number;
+                    /** @description Tokens left in the current bucket. */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the bucket next refills. */
+                    "RateLimit-Reset"?: number;
+                    /** @description The cumulative quota for the current billing period. */
+                    "Quota-Limit"?: number;
+                    /** @description Quota left in the current billing period. */
+                    "Quota-Remaining"?: number;
+                    /** @description Seconds until the current billing period resets. */
+                    "Quota-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message: string;
+                    };
+                };
+            };
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description This Idempotency-Key was already used for a request with a different body. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            /** @description The rate limit for this tenant has been exceeded. */
+            429: {
+                headers: {
+                    /** @description Seconds until the bucket next refills. */
+                    "Retry-After"?: number;
+                    /** @description The token bucket capacity for this tenant. */
+                    "RateLimit-Limit"?: number;
+                    /** @description Tokens left in the current bucket. */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the bucket next refills. */
+                    "RateLimit-Reset"?: number;
+                    /** @description The cumulative quota for the current billing period. */
+                    "Quota-Limit"?: number;
+                    /** @description Quota left in the current billing period. */
+                    "Quota-Remaining"?: number;
+                    /** @description Seconds until the current billing period resets. */
+                    "Quota-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message: string;
+                    };
+                };
+            };
+        };
+    };
+    "endpoints.secrets.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The endpoint public id */
+                endpoint: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `EndpointSecretResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EndpointSecretResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "endpoints.secrets.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The endpoint public id */
+                endpoint: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `IssuedEndpointSecretResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedEndpointSecretResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "endpoints.secrets.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The endpoint public id */
+                endpoint: string;
+                /** @description The secret public id */
+                secret: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "event-types.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `EventTypeResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EventTypeResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "event-types.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreEventTypeRequest"];
+            };
+        };
+        responses: {
+            /** @description `EventTypeResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventTypeResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     health: {

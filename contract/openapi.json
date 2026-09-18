@@ -272,6 +272,1470 @@
                 ]
             }
         },
+        "/v1/applications": {
+            "get": {
+                "operationId": "applications.index",
+                "tags": [
+                    "Application"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `ApplicationResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/ApplicationResource"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "applications.store",
+                "tags": [
+                    "Application"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreApplicationRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`ApplicationResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApplicationResource"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
+        "/v1/applications/{application}": {
+            "get": {
+                "operationId": "applications.show",
+                "summary": "A foreign tenant's application never reaches this method: route model\nbinding resolves it through the tenant scope, so the answer is 404\nrather than 403",
+                "tags": [
+                    "Application"
+                ],
+                "parameters": [
+                    {
+                        "name": "application",
+                        "in": "path",
+                        "required": true,
+                        "description": "The application public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`ApplicationResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApplicationResource"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "applications.update",
+                "tags": [
+                    "Application"
+                ],
+                "parameters": [
+                    {
+                        "name": "application",
+                        "in": "path",
+                        "required": true,
+                        "description": "The application public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateApplicationRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`ApplicationResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApplicationResource"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
+        "/v1/applications/{application}/endpoints": {
+            "get": {
+                "operationId": "applications.endpoints.index",
+                "summary": "Nested under the application whose endpoints these are; a foreign\ntenant's application is already a 404 by the time this runs",
+                "tags": [
+                    "Endpoint"
+                ],
+                "parameters": [
+                    {
+                        "name": "application",
+                        "in": "path",
+                        "required": true,
+                        "description": "The application public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `EndpointResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/EndpointResource"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "applications.endpoints.store",
+                "tags": [
+                    "Endpoint"
+                ],
+                "parameters": [
+                    {
+                        "name": "application",
+                        "in": "path",
+                        "required": true,
+                        "description": "The application public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreEndpointRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`EndpointResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EndpointResource"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
+        "/v1/endpoints/{endpoint}": {
+            "get": {
+                "operationId": "endpoints.show",
+                "tags": [
+                    "Endpoint"
+                ],
+                "parameters": [
+                    {
+                        "name": "endpoint",
+                        "in": "path",
+                        "required": true,
+                        "description": "The endpoint public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`EndpointResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EndpointResource"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "endpoints.update",
+                "tags": [
+                    "Endpoint"
+                ],
+                "parameters": [
+                    {
+                        "name": "endpoint",
+                        "in": "path",
+                        "required": true,
+                        "description": "The endpoint public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateEndpointRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`EndpointResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EndpointResource"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
+        "/v1/endpoints/{endpoint}/subscriptions": {
+            "put": {
+                "operationId": "endpoints.subscriptions.sync",
+                "tags": [
+                    "Endpoint"
+                ],
+                "parameters": [
+                    {
+                        "name": "endpoint",
+                        "in": "path",
+                        "required": true,
+                        "description": "The endpoint public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SyncSubscriptionsRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`EndpointResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EndpointResource"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
+        "/v1/endpoints/{endpoint}/test-events": {
+            "post": {
+                "operationId": "endpoints.test-events.store",
+                "summary": "D76: the ordinary ingest path, narrowed to this one endpoint and\nmarked \u2014 not a second delivery mechanism. governor still applies\n(routes/api.php), so this costs the tenant a rate-limit token and a\nquota unit exactly like a producer's own publish",
+                "tags": [
+                    "Endpoint"
+                ],
+                "parameters": [
+                    {
+                        "name": "endpoint",
+                        "in": "path",
+                        "required": true,
+                        "description": "The endpoint public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "description": "An optional key scoped to this tenant. Replaying it with an identical body returns the original result unchanged (200, Idempotent-Replay: true); a different body answers 409.",
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^[\\x21-\\x7e]+$",
+                            "maxLength": 255
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SendTestEventRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "201": {
+                        "description": "Accepted: this request produced a new record.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TestEventResource"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "description": "The token bucket capacity for this tenant.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Remaining": {
+                                "description": "Tokens left in the current bucket.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Reset": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Limit": {
+                                "description": "The cumulative quota for the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Remaining": {
+                                "description": "Quota left in the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Reset": {
+                                "description": "Seconds until the current billing period resets.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "Idempotent replay: an identical earlier request already produced this result.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TestEventResource"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Idempotent-Replay": {
+                                "description": "Present, and always \"true\", only on the replayed response.",
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true"
+                                    ]
+                                }
+                            },
+                            "RateLimit-Limit": {
+                                "description": "The token bucket capacity for this tenant.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Remaining": {
+                                "description": "Tokens left in the current bucket.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Reset": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Limit": {
+                                "description": "The cumulative quota for the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Remaining": {
+                                "description": "Quota left in the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Reset": {
+                                "description": "Seconds until the current billing period resets.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "This Idempotency-Key was already used for a request with a different body.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The rate limit for this tenant has been exceeded.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Limit": {
+                                "description": "The token bucket capacity for this tenant.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Remaining": {
+                                "description": "Tokens left in the current bucket.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Reset": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Limit": {
+                                "description": "The cumulative quota for the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Remaining": {
+                                "description": "Quota left in the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Reset": {
+                                "description": "Seconds until the current billing period resets.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "This tenant's quota for the current billing period has been exhausted.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "description": "The token bucket capacity for this tenant.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Remaining": {
+                                "description": "Tokens left in the current bucket.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "RateLimit-Reset": {
+                                "description": "Seconds until the bucket next refills.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Limit": {
+                                "description": "The cumulative quota for the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Remaining": {
+                                "description": "Quota left in the current billing period.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Quota-Reset": {
+                                "description": "Seconds until the current billing period resets.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
+        "/v1/endpoints/{endpoint}/secrets": {
+            "get": {
+                "operationId": "endpoints.secrets.index",
+                "tags": [
+                    "EndpointSecret"
+                ],
+                "parameters": [
+                    {
+                        "name": "endpoint",
+                        "in": "path",
+                        "required": true,
+                        "description": "The endpoint public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `EndpointSecretResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/EndpointSecretResource"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "endpoints.secrets.store",
+                "summary": "Issuing is how an endpoint rotates (App\\Actions\\Catalog\\IssueEndpointSecret's\nown docblock) \u2014 there is no separate rotate endpoint",
+                "tags": [
+                    "EndpointSecret"
+                ],
+                "parameters": [
+                    {
+                        "name": "endpoint",
+                        "in": "path",
+                        "required": true,
+                        "description": "The endpoint public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "`IssuedEndpointSecretResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/IssuedEndpointSecretResource"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
+        "/v1/endpoints/{endpoint}/secrets/{secret}": {
+            "delete": {
+                "operationId": "endpoints.secrets.destroy",
+                "summary": "A secret from another endpoint \u2014 even one in the same tenant \u2014 is a\n404 here: the route names an endpoint and a secret together, and a\nsecret that does not belong to that endpoint is not this route's\nresource, the same \"a foreign id is 404, not 403\" reasoning route\nmodel binding already applies across tenants",
+                "tags": [
+                    "EndpointSecret"
+                ],
+                "parameters": [
+                    {
+                        "name": "endpoint",
+                        "in": "path",
+                        "required": true,
+                        "description": "The endpoint public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "secret",
+                        "in": "path",
+                        "required": true,
+                        "description": "The secret public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
+        "/v1/event-types": {
+            "get": {
+                "operationId": "event-types.index",
+                "tags": [
+                    "EventType"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `EventTypeResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/EventTypeResource"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "event-types.store",
+                "tags": [
+                    "EventType"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreEventTypeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`EventTypeResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventTypeResource"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
         "/health": {
             "get": {
                 "operationId": "health",
@@ -1463,6 +2927,140 @@
                 ],
                 "title": "ApiKeyResource"
             },
+            "ApplicationResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "endpoint_count": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "endpoint_count",
+                    "created_at"
+                ],
+                "title": "ApplicationResource"
+            },
+            "EndpointResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "application_id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "subscriptions": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "breaker": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "state": {
+                                "type": "string"
+                            },
+                            "state_changed_at": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "state",
+                            "state_changed_at"
+                        ]
+                    },
+                    "active_secret_count": {
+                        "type": "integer"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "application_id",
+                    "name",
+                    "url",
+                    "status",
+                    "subscriptions",
+                    "breaker",
+                    "active_secret_count",
+                    "created_at"
+                ],
+                "title": "EndpointResource"
+            },
+            "EndpointSecretResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "last_four": {
+                        "type": "string"
+                    },
+                    "expires_at": {
+                        "type": "string"
+                    },
+                    "revoked_at": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "last_four",
+                    "expires_at",
+                    "revoked_at",
+                    "created_at"
+                ],
+                "title": "EndpointSecretResource"
+            },
+            "EventTypeResource": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "subscriber_count": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "name",
+                    "subscriber_count",
+                    "created_at"
+                ],
+                "title": "EventTypeResource"
+            },
             "HealthResource": {
                 "type": "object",
                 "properties": {
@@ -1581,6 +3179,39 @@
                 ],
                 "title": "IssuedApiKeyResource"
             },
+            "IssuedEndpointSecretResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "last_four": {
+                        "type": "string"
+                    },
+                    "expires_at": {
+                        "type": "string"
+                    },
+                    "revoked_at": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    },
+                    "secret": {
+                        "type": "string",
+                        "description": "Shown once. A client that loses it here has to issue\nanother secret \u2014 the row can decrypt its own value again,\nbut nothing in this API will ever hand it back out."
+                    }
+                },
+                "required": [
+                    "id",
+                    "last_four",
+                    "expires_at",
+                    "revoked_at",
+                    "created_at",
+                    "secret"
+                ],
+                "title": "IssuedEndpointSecretResource"
+            },
             "LoginRequest": {
                 "type": "object",
                 "properties": {
@@ -1608,6 +3239,9 @@
                     "event_type": {
                         "type": "string"
                     },
+                    "source": {
+                        "type": "string"
+                    },
                     "created_at": {
                         "type": "string"
                     }
@@ -1615,6 +3249,7 @@
                 "required": [
                     "id",
                     "event_type",
+                    "source",
                     "created_at"
                 ],
                 "title": "MessageResource"
@@ -1742,6 +3377,18 @@
                 ],
                 "title": "ReplayResource"
             },
+            "SendTestEventRequest": {
+                "type": "object",
+                "properties": {
+                    "event_type": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "event_type"
+                ],
+                "title": "SendTestEventRequest"
+            },
             "StoreApiKeyRequest": {
                 "type": "object",
                 "properties": {
@@ -1762,6 +3409,146 @@
                     "name"
                 ],
                 "title": "StoreApiKeyRequest"
+            },
+            "StoreApplicationRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Scoped to the current tenant by Row Level Security, the same\nway PublishMessageRequest's event_type check needs no explicit\ntenant predicate of its own.",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "title": "StoreApplicationRequest"
+            },
+            "StoreEndpointRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "url": {
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 2048
+                    }
+                },
+                "required": [
+                    "name",
+                    "url"
+                ],
+                "title": "StoreEndpointRequest"
+            },
+            "StoreEventTypeRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Same shape the database CHECK constraint holds this table to\n(2026_09_10_000008): lowercase, dotted, at most 100 characters.",
+                        "pattern": "^[a-z0-9]+([._-][a-z0-9]+)*$",
+                        "maxLength": 100
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "title": "StoreEventTypeRequest"
+            },
+            "SyncSubscriptionsRequest": {
+                "type": "object",
+                "properties": {
+                    "event_types": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "event_types"
+                ],
+                "title": "SyncSubscriptionsRequest"
+            },
+            "TestEventResource": {
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "event_type": {
+                                "type": "string"
+                            },
+                            "source": {
+                                "type": "string"
+                            },
+                            "created_at": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "event_type",
+                            "source",
+                            "created_at"
+                        ]
+                    },
+                    "delivery_id": {
+                        "type": "string"
+                    },
+                    "delivery_status": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "message",
+                    "delivery_id",
+                    "delivery_status"
+                ],
+                "title": "TestEventResource"
+            },
+            "UpdateApplicationRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "title": "UpdateApplicationRequest"
+            },
+            "UpdateEndpointRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Every field is a partial update: an operator flipping the\nstatus switch should not have to resend the name and URL too.",
+                        "maxLength": 255
+                    },
+                    "url": {
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 2048
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "A plain 'in:' list rather than Rule::enum(): that helper\nimplements the older Rule contract, not ValidationRule, so it\ndoes not fit the one shape every rule in this class carries.",
+                        "enum": [
+                            "enabled",
+                            "disabled"
+                        ]
+                    }
+                },
+                "title": "UpdateEndpointRequest"
             }
         },
         "responses": {
