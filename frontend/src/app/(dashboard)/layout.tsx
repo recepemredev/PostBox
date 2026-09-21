@@ -6,6 +6,7 @@ import { logoutAction } from "./actions";
 
 const NAV_ITEMS = [
   { href: "/applications", label: "Applications" },
+  { href: "/messages", label: "Messages" },
   { href: "/event-types", label: "Event types" },
 ];
 

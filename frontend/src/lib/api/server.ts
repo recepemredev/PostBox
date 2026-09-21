@@ -105,6 +105,17 @@ type Paginated<T> = {
   meta: { current_page: number; last_page: number; total: number };
 };
 
+/**
+ * @internal shape shared by every cursor-paginated Ledger list
+ * (conventions.md: cursor pagination for the append-only tables). Distinct
+ * from Paginated<T> above — a keyset cursor has no page number or total to
+ * carry, only whatever comes next.
+ */
+type CursorPaginated<T> = {
+  data: T[];
+  meta: { next_cursor: string | null };
+};
+
 // --- Identity ---------------------------------------------------------------
 
 export function login(credentials: Schemas["LoginRequest"]): Promise<Schemas["IdentityResource"]> {
@@ -201,4 +212,54 @@ export function issueSecret(endpointId: string): Promise<Schemas["IssuedEndpoint
 
 export function revokeSecret(endpointId: string, secretId: string): Promise<void> {
   return apiFetch("DELETE", `/endpoints/${endpointId}/secrets/${secretId}`);
+}
+
+// --- Messages (Step 14) -------------------------------------------------------
+
+/**
+ * `query` is built by `lib/messages/filters.ts`'s `toQueryString()` — every
+ * filter, the cursor and the limit together, since a message list request
+ * is one query string, not a pile of optional parameters this function
+ * would have to reassemble itself.
+ */
+export function listMessages(query: string): Promise<CursorPaginated<Schemas["MessageSummaryResource"]>> {
+  return apiFetch("GET", `/messages${query}`);
+}
+
+export function getMessage(messageId: string): Promise<Schemas["MessageDetailResource"]> {
+  return apiFetch("GET", `/messages/${messageId}`);
+}
+
+export function listAttempts(
+  deliveryId: string,
+  query = "",
+): Promise<CursorPaginated<Schemas["DeliveryAttemptResource"]>> {
+  return apiFetch("GET", `/deliveries/${deliveryId}/attempts${query}`);
+}
+
+// --- Recovery (Step 9, buttons added in Step 14) ------------------------------
+
+/**
+ * D76/D122: "retry a single delivery" and "replay to every subscriber" are
+ * the same call, endpoint present or absent — never two functions for one
+ * request shape. Opens a new delivery; it never retries the row a caller
+ * already has (D78).
+ */
+export function replayMessage(messageId: string, endpointId: string | null): Promise<Schemas["ReplayResource"]> {
+  return apiFetch("POST", `/messages/${messageId}/replay`, {
+    endpoint: endpointId ?? null,
+  } satisfies Schemas["ReplayMessageRequest"]);
+}
+
+/**
+ * One endpoint's own exhausted deliveries over a bounded window, capped at
+ * `postbox.replay.max_deliveries_per_request` server-side (D80) — `from`
+ * and `to` are whatever `canReplayRange()` already confirmed the screen's
+ * own filters can express.
+ */
+export function replayRange(endpointId: string, from: string, to: string): Promise<Schemas["ReplayResource"]> {
+  return apiFetch("POST", `/endpoints/${endpointId}/replays`, {
+    from,
+    to,
+  } satisfies Schemas["ReplayRangeRequest"]);
 }
