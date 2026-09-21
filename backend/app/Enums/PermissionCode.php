@@ -27,4 +27,6 @@ enum PermissionCode: string
     case EndpointSecretManage = 'endpoint_secret.manage';
 
     case EndpointTest = 'endpoint.test';
+
+    case LedgerRead = 'ledger.read';
 }

@@ -32,6 +32,15 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Application $application
  * @property-read EventType $eventType
+ * @property-read int $deliveries_count from MessageController's own
+ *                withCount('deliveries') — Larastan's Laravel plugin only
+ *                infers the plain, unaliased form of that call
+ * @property-read int $succeeded_deliveries_count from MessageController's
+ *                own aliased withCount(['deliveries as
+ *                succeeded_deliveries_count' => ...])
+ * @property-read int $exhausted_deliveries_count from MessageController's
+ *                own aliased withCount(['deliveries as
+ *                exhausted_deliveries_count' => ...])
  */
 final class Message extends Model
 {

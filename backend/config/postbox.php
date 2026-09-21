@@ -274,4 +274,21 @@ return [
         'max_deliveries_per_request' => (int) env('POSTBOX_REPLAY_BATCH_SIZE', 200),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Ledger
+    |--------------------------------------------------------------------------
+    |
+    | The page size for the message and attempt lists (Step 14). Env values,
+    | the same reasoning as the replay batch size: how many rows a page holds
+    | is an operational decision, not a product one. default_page_size is
+    | what a caller gets with no ?limit of its own; max_page_size is the
+    | ceiling a caller cannot ask past.
+    |
+    */
+    'ledger' => [
+        'default_page_size' => (int) env('POSTBOX_LEDGER_PAGE_SIZE', 50),
+        'max_page_size' => (int) env('POSTBOX_LEDGER_MAX_PAGE_SIZE', 100),
+    ],
+
 ];

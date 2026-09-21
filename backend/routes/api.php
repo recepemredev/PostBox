@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\ApiKeyController;
 use App\Http\Controllers\ApplicationController;
+use App\Http\Controllers\DeliveryAttemptController;
 use App\Http\Controllers\EndpointController;
 use App\Http\Controllers\EndpointSecretController;
 use App\Http\Controllers\EventTypeController;
@@ -111,6 +112,25 @@ Route::prefix('v1')->middleware('dashboard')->group(function (): void {
         Route::delete('endpoints/{endpoint}/secrets/{secret}', [EndpointSecretController::class, 'destroy'])
             ->can('delete', 'secret')
             ->name('endpoints.secrets.destroy');
+
+        /*
+         * Ledger's own read surface (Step 14): the message list and its
+         * attempt inspector. No `governor` — these are reads, and Governor
+         * exists to bound the ingest surface's write volume, not the
+         * dashboard's own traffic. Authorization for the filtered list and
+         * the attempt list lives in their own Form Requests, next to the
+         * rules they validate, the same split every other Form-Request-
+         * carrying route in this file already takes; a plain read with no
+         * body (messages.show) declares it on the route instead.
+         */
+        Route::get('messages', [MessageController::class, 'index'])->name('messages.index');
+
+        Route::get('messages/{message}', [MessageController::class, 'show'])
+            ->can('view', 'message')
+            ->name('messages.show');
+
+        Route::get('deliveries/{delivery}/attempts', [DeliveryAttemptController::class, 'index'])
+            ->name('deliveries.attempts.index');
 
         /*
          * Recovery. An operator's own action, so it rides the session

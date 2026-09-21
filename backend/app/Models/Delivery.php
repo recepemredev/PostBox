@@ -10,9 +10,11 @@ use App\Models\Concerns\HasPublicId;
 use Carbon\CarbonImmutable;
 use Database\Factories\DeliveryFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -46,6 +48,7 @@ use Illuminate\Support\Carbon;
  * @property-read Endpoint $endpoint
  * @property-read Message $message
  * @property-read Replay|null $replay
+ * @property-read Collection<int, DeliveryAttempt> $attempts
  */
 final class Delivery extends Model
 {
@@ -107,6 +110,19 @@ final class Delivery extends Model
     public function replay(): BelongsTo
     {
         return $this->belongsTo(Replay::class);
+    }
+
+    /**
+     * The retry timeline (Step 14): this delivery's own attempts, in order.
+     * No foreign key behind it, matching every other reference into the
+     * partitioned tables — delivery_attempts.delivery_id is an
+     * application-level fact here, not a database-level one.
+     *
+     * @return HasMany<DeliveryAttempt, $this>
+     */
+    public function attempts(): HasMany
+    {
+        return $this->hasMany(DeliveryAttempt::class);
     }
 
     /**
