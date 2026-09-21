@@ -576,6 +576,77 @@
                 ]
             }
         },
+        "/v1/deliveries/{delivery}/attempts": {
+            "get": {
+                "operationId": "deliveries.attempts.index",
+                "summary": "The retry timeline's own read (Step 14): one delivery's own attempts,\nin order \u2014 the index delivery_attempts_delivery_created_at_index was\nbuilt for at Step 3, with this exact query already in its own\ncomment. A separate route from the message detail view for the same\nreason Ledger's own message list is separate from Recovery's replay\nactions: delivery_attempts is append-only and unbounded per\nconventions.md, so it gets its own cursor rather than riding along\ninside a message's own (bounded, unpaginated) delivery list",
+                "tags": [
+                    "DeliveryAttempt"
+                ],
+                "parameters": [
+                    {
+                        "name": "delivery",
+                        "in": "path",
+                        "required": true,
+                        "description": "The delivery public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`DeliveryAttemptCollection`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeliveryAttemptCollection"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
         "/v1/applications/{application}/endpoints": {
             "get": {
                 "operationId": "applications.endpoints.index",
@@ -1893,6 +1964,171 @@
                 ]
             }
         },
+        "/v1/messages": {
+            "get": {
+                "operationId": "messages.index",
+                "summary": "The message list (Step 14): filtered, cursor-paginated, newest last \u2014\nconventions.md's cursor-pagination rule for an append-only table.\n\"Status\" filters on whether any of a message's own deliveries are in\nthat state (MessageFilters), since there is no status column on the\nmessage itself",
+                "tags": [
+                    "Message"
+                ],
+                "parameters": [
+                    {
+                        "name": "endpoint",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "event_type",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "A plain 'in:' list rather than Rule::enum(): that helper\nimplements the older Rule contract, not ValidationRule, so it\ndoes not fit the one shape every rule in this class carries\n(the same choice UpdateEndpointRequest already made).",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "pending",
+                                "succeeded",
+                                "exhausted",
+                                null
+                            ]
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "description": "Opaque; a caller only ever carries one back from a previous\nresponse, never composes one by hand.",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`MessageCollection`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageCollection"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
+        "/v1/messages/{message}": {
+            "get": {
+                "operationId": "messages.show",
+                "summary": "A foreign tenant's message never reaches this method: route model\nbinding resolves it through the tenant scope, so the answer is 404\nrather than 403 \u2014 the same guarantee every other detail route in this\napplication carries",
+                "tags": [
+                    "Message"
+                ],
+                "parameters": [
+                    {
+                        "name": "message",
+                        "in": "path",
+                        "required": true,
+                        "description": "The message public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`MessageDetailResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageDetailResource"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
         "/v1/apps/{application}/messages": {
             "post": {
                 "operationId": "messages.store",
@@ -2951,6 +3187,168 @@
                 ],
                 "title": "ApplicationResource"
             },
+            "DeliveryAttemptCollection": {
+                "type": "object",
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DeliveryAttemptResource"
+                        }
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "next_cursor": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "next_cursor"
+                        ]
+                    }
+                },
+                "required": [
+                    "data",
+                    "meta"
+                ],
+                "title": "DeliveryAttemptCollection"
+            },
+            "DeliveryAttemptResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "delivery_id": {
+                        "type": "string"
+                    },
+                    "endpoint_id": {
+                        "type": "string"
+                    },
+                    "attempt_number": {
+                        "type": "integer"
+                    },
+                    "outcome": {
+                        "type": "string"
+                    },
+                    "request_headers": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    },
+                    "request_body": {
+                        "type": "string"
+                    },
+                    "response_status": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "response_headers": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {}
+                    },
+                    "response_body": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "error_message": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "duration_ms": {
+                        "type": "integer"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "delivery_id",
+                    "endpoint_id",
+                    "attempt_number",
+                    "outcome",
+                    "request_headers",
+                    "request_body",
+                    "response_status",
+                    "response_headers",
+                    "response_body",
+                    "error_message",
+                    "duration_ms",
+                    "created_at"
+                ],
+                "title": "DeliveryAttemptResource"
+            },
+            "DeliveryResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "endpoint_id": {
+                        "type": "string"
+                    },
+                    "endpoint_name": {
+                        "type": "string"
+                    },
+                    "replay_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "attempt_count": {
+                        "type": "integer"
+                    },
+                    "next_attempt_at": {
+                        "type": "string"
+                    },
+                    "last_attempted_at": {
+                        "type": "string"
+                    },
+                    "exhausted_at": {
+                        "type": "string"
+                    },
+                    "failure_reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "created_at": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "endpoint_id",
+                    "endpoint_name",
+                    "replay_id",
+                    "status",
+                    "attempt_count",
+                    "next_attempt_at",
+                    "last_attempted_at",
+                    "exhausted_at",
+                    "failure_reason",
+                    "created_at"
+                ],
+                "title": "DeliveryResource"
+            },
             "EndpointResource": {
                 "type": "object",
                 "properties": {
@@ -3230,6 +3628,80 @@
                 ],
                 "title": "LoginRequest"
             },
+            "MessageCollection": {
+                "type": "object",
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MessageSummaryResource"
+                        }
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "next_cursor": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "next_cursor"
+                        ]
+                    }
+                },
+                "required": [
+                    "data",
+                    "meta"
+                ],
+                "title": "MessageCollection"
+            },
+            "MessageDetailResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "application_id": {
+                        "type": "string"
+                    },
+                    "application_name": {
+                        "type": "string"
+                    },
+                    "event_type": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "type": "string"
+                    },
+                    "payload": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    },
+                    "deliveries": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DeliveryResource"
+                        }
+                    },
+                    "created_at": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "application_id",
+                    "application_name",
+                    "event_type",
+                    "source",
+                    "payload",
+                    "deliveries",
+                    "created_at"
+                ],
+                "title": "MessageDetailResource"
+            },
             "MessageResource": {
                 "type": "object",
                 "properties": {
@@ -3253,6 +3725,62 @@
                     "created_at"
                 ],
                 "title": "MessageResource"
+            },
+            "MessageSummaryResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "application_id": {
+                        "type": "string"
+                    },
+                    "application_name": {
+                        "type": "string"
+                    },
+                    "event_type": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "type": "string"
+                    },
+                    "deliveries": {
+                        "type": "object",
+                        "properties": {
+                            "total": {
+                                "type": "integer"
+                            },
+                            "succeeded": {
+                                "type": "integer"
+                            },
+                            "pending": {
+                                "type": "integer"
+                            },
+                            "exhausted": {
+                                "type": "integer"
+                            }
+                        },
+                        "required": [
+                            "total",
+                            "succeeded",
+                            "pending",
+                            "exhausted"
+                        ]
+                    },
+                    "created_at": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "application_id",
+                    "application_name",
+                    "event_type",
+                    "source",
+                    "deliveries",
+                    "created_at"
+                ],
+                "title": "MessageSummaryResource"
             },
             "PublishMessageRequest": {
                 "type": "object",

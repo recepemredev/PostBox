@@ -99,6 +99,32 @@ export interface paths {
         patch: operations["applications.update"];
         trace?: never;
     };
+    "/v1/deliveries/{delivery}/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The retry timeline's own read (Step 14): one delivery's own attempts,
+         *     in order — the index delivery_attempts_delivery_created_at_index was
+         *     built for at Step 3, with this exact query already in its own
+         *     comment. A separate route from the message detail view for the same
+         *     reason Ledger's own message list is separate from Recovery's replay
+         *     actions: delivery_attempts is append-only and unbounded per
+         *     conventions.md, so it gets its own cursor rather than riding along
+         *     inside a message's own (bounded, unpaginated) delivery list
+         */
+        get: operations["deliveries.attempts.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/applications/{application}/endpoints": {
         parameters: {
             query?: never;
@@ -264,6 +290,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The message list (Step 14): filtered, cursor-paginated, newest last —
+         *     conventions.md's cursor-pagination rule for an append-only table.
+         *     "Status" filters on whether any of a message's own deliveries are in
+         *     that state (MessageFilters), since there is no status column on the
+         *     message itself
+         */
+        get: operations["messages.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/messages/{message}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A foreign tenant's message never reaches this method: route model
+         *     binding resolves it through the tenant scope, so the answer is 404
+         *     rather than 403 — the same guarantee every other detail route in this
+         *     application carries
+         */
+        get: operations["messages.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/apps/{application}/messages": {
         parameters: {
             query?: never;
@@ -385,6 +456,47 @@ export interface components {
             endpoint_count: string;
             created_at: string;
         };
+        /** DeliveryAttemptCollection */
+        DeliveryAttemptCollection: {
+            data: components["schemas"]["DeliveryAttemptResource"][];
+            meta: {
+                next_cursor: string | null;
+            };
+        };
+        /** DeliveryAttemptResource */
+        DeliveryAttemptResource: {
+            id: string;
+            delivery_id: string;
+            endpoint_id: string;
+            attempt_number: number;
+            outcome: string;
+            request_headers: {
+                [key: string]: unknown;
+            };
+            request_body: string;
+            response_status: number | null;
+            response_headers: {
+                [key: string]: unknown;
+            } | null;
+            response_body: string | null;
+            error_message: string | null;
+            duration_ms: number;
+            created_at: string;
+        };
+        /** DeliveryResource */
+        DeliveryResource: {
+            id: string;
+            endpoint_id: string;
+            endpoint_name: string;
+            replay_id: string | null;
+            status: string;
+            attempt_count: number;
+            next_attempt_at: string;
+            last_attempted_at: string;
+            exhausted_at: string;
+            failure_reason: string | null;
+            created_at: string;
+        };
         /** EndpointResource */
         EndpointResource: {
             id: string;
@@ -474,11 +586,46 @@ export interface components {
             email: string;
             password: string;
         };
+        /** MessageCollection */
+        MessageCollection: {
+            data: components["schemas"]["MessageSummaryResource"][];
+            meta: {
+                next_cursor: string | null;
+            };
+        };
+        /** MessageDetailResource */
+        MessageDetailResource: {
+            id: string;
+            application_id: string;
+            application_name: string;
+            event_type: string;
+            source: string;
+            payload: {
+                [key: string]: unknown;
+            };
+            deliveries: components["schemas"]["DeliveryResource"][];
+            created_at: string;
+        };
         /** MessageResource */
         MessageResource: {
             id: string;
             event_type: string;
             source: string;
+            created_at: string;
+        };
+        /** MessageSummaryResource */
+        MessageSummaryResource: {
+            id: string;
+            application_id: string;
+            application_name: string;
+            event_type: string;
+            source: string;
+            deliveries: {
+                total: number;
+                succeeded: number;
+                pending: number;
+                exhausted: number;
+            };
             created_at: string;
         };
         /**
@@ -931,6 +1078,36 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApplicationResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "deliveries.attempts.index": {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                limit?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description The delivery public id */
+                delivery: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `DeliveryAttemptCollection` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryAttemptCollection"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -1495,6 +1672,73 @@ export interface operations {
                 };
             };
             401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "messages.index": {
+        parameters: {
+            query?: {
+                endpoint?: string | null;
+                event_type?: string | null;
+                /**
+                 * @description A plain 'in:' list rather than Rule::enum(): that helper
+                 *     implements the older Rule contract, not ValidationRule, so it
+                 *     does not fit the one shape every rule in this class carries
+                 *     (the same choice UpdateEndpointRequest already made).
+                 */
+                status?: "pending" | "succeeded" | "exhausted" | null;
+                from?: string | null;
+                to?: string | null;
+                /**
+                 * @description Opaque; a caller only ever carries one back from a previous
+                 *     response, never composes one by hand.
+                 */
+                cursor?: string | null;
+                limit?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `MessageCollection` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageCollection"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "messages.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The message public id */
+                message: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `MessageDetailResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageDetailResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "messages.store": {
