@@ -7,6 +7,7 @@ namespace App\Support\Recovery;
 use App\Models\Delivery;
 use App\Models\Endpoint;
 use App\Models\Message;
+use App\Support\Pagination\KeysetCursor;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Config;
@@ -30,7 +31,7 @@ final readonly class ReplayScope
         private bool $requireMatch,
         private ?CarbonImmutable $from = null,
         private ?CarbonImmutable $to = null,
-        private ?ReplayCursor $cursor = null,
+        private ?KeysetCursor $cursor = null,
     ) {}
 
     /**
@@ -52,7 +53,7 @@ final readonly class ReplayScope
         Endpoint $endpoint,
         CarbonImmutable $from,
         CarbonImmutable $to,
-        ?ReplayCursor $cursor = null,
+        ?KeysetCursor $cursor = null,
     ): self {
         return new self(null, $endpoint, requireMatch: false, from: $from, to: $to, cursor: $cursor);
     }
@@ -174,19 +175,7 @@ final readonly class ReplayScope
             ->orderBy('id');
 
         if ($this->cursor !== null) {
-            $cursor = $this->cursor;
-
-            // Keyset pagination: strictly after the last row the previous
-            // page ended on, in (exhausted_at, id) order. A plain
-            // exhausted_at > cursor would skip every row that shares its
-            // second; id is the tiebreaker that makes a page boundary land
-            // between rows rather than through a tied instant.
-            $query->where(function (Builder $outer) use ($cursor): void {
-                $outer->where('exhausted_at', '>', $cursor->exhaustedAt)
-                    ->orWhere(function (Builder $inner) use ($cursor): void {
-                        $inner->where('exhausted_at', $cursor->exhaustedAt)->where('id', '>', $cursor->id);
-                    });
-            });
+            $this->cursor->applyTo($query, timestampColumn: 'exhausted_at', tiebreakColumn: 'id');
         }
 
         return $query;

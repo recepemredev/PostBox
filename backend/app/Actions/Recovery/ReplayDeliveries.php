@@ -10,7 +10,8 @@ use App\Exceptions\ReplayTargetNotFound;
 use App\Models\Delivery;
 use App\Models\Replay;
 use App\Support\Idempotency\Fingerprint;
-use App\Support\Recovery\ReplayCursor;
+use App\Support\Pagination\CursorPage;
+use App\Support\Pagination\KeysetCursor;
 use App\Support\Recovery\ReplayResult;
 use App\Support\Recovery\ReplayScope;
 use Illuminate\Database\Eloquent\Collection;
@@ -117,10 +118,9 @@ final readonly class ReplayDeliveries
 
     /**
      * What the scope names, bounded to its own batch ceiling when it has
-     * one. A range scope's ceiling is fetched one row past the limit so this
-     * can tell "exactly this many" from "at least this many" without a
-     * second, separate count query — the extra row is trimmed back off
-     * before it ever reaches a delivery this replay opens.
+     * one. A range scope's own page is built by CursorPage the same way a
+     * Ledger list's is — one row past the limit fetched and trimmed back
+     * off, rather than a second, separate count query.
      *
      * @return array{0: Collection<int, Delivery>, 1: string|null}
      */
@@ -129,22 +129,17 @@ final readonly class ReplayDeliveries
         $limit = $scope->limit();
         $query = $scope->deliveries();
 
-        if ($limit !== null) {
-            $query->limit($limit + 1);
+        if ($limit === null) {
+            return [$query->get(), null];
         }
 
-        $matched = $query->get();
+        $page = CursorPage::fetch($query, $limit, static function (Delivery $delivery): KeysetCursor {
+            assert($delivery->exhausted_at !== null);
 
-        if ($limit === null || $matched->count() <= $limit) {
-            return [$matched, null];
-        }
+            return KeysetCursor::after($delivery->exhausted_at, (string) $delivery->id);
+        });
 
-        $matched = $matched->slice(0, $limit)->values();
-
-        $last = $matched->last();
-        assert($last !== null);
-
-        return [$matched, ReplayCursor::after($last)->encode()];
+        return [$page->items, $page->next?->encode()];
     }
 
     /**

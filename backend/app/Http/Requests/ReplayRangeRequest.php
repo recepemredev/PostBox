@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Models\Replay;
-use App\Rules\ValidReplayCursor;
-use App\Support\Recovery\ReplayCursor;
+use App\Rules\ValidKeysetCursor;
+use App\Support\Pagination\KeysetCursor;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -30,7 +30,7 @@ final class ReplayRangeRequest extends FormRequest
 
             // Opaque; a caller only ever carries one back from a previous
             // response, never composes one by hand.
-            'cursor' => ['nullable', 'string', new ValidReplayCursor],
+            'cursor' => ['nullable', 'string', new ValidKeysetCursor],
 
             'idempotency_key' => ['nullable', 'string', 'max:255', 'regex:/^[\x21-\x7e]+$/'],
         ];
@@ -60,9 +60,9 @@ final class ReplayRangeRequest extends FormRequest
      * proved it decodes — the same trade PublishMessageRequest's own
      * event_type rule makes against PublishMessage's later lookup.
      */
-    public function cursor(): ?ReplayCursor
+    public function cursor(): ?KeysetCursor
     {
-        return $this->filled('cursor') ? ReplayCursor::decode($this->string('cursor')->value()) : null;
+        return $this->filled('cursor') ? KeysetCursor::decode($this->string('cursor')->value()) : null;
     }
 
     public function idempotencyKey(): ?string
