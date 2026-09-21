@@ -22,6 +22,14 @@ use Illuminate\Support\Facades\Config;
 final readonly class AttemptRecord
 {
     /**
+     * What a scrubbed header's value becomes in storage. A literal a
+     * dashboard reader recognises on sight (design.md: "scrubbed headers
+     * are shown as redacted rather than omitted, so the scrubbing itself is
+     * visible") rather than a value it has to be told the meaning of.
+     */
+    public const string REDACTED = '[redacted]';
+
+    /**
      * @param  array<string, string>  $requestHeaders
      * @return AttemptFields
      */
@@ -89,6 +97,12 @@ final readonly class AttemptRecord
     }
 
     /**
+     * A scrubbed header is redacted, not removed: the inspector (Step 14)
+     * has to be able to show that scrubbing happened, which a header that
+     * silently disappeared could never distinguish from one that was never
+     * sent. Whether PostBox sent (or received) a header by this name is
+     * still exactly true — only its value is gone.
+     *
      * @param  array<string, string>  $headers
      * @return array<string, string>
      */
@@ -102,11 +116,13 @@ final readonly class AttemptRecord
             }
         }
 
-        return array_filter(
-            $headers,
-            static fn (string $name): bool => ! in_array(strtolower($name), $scrubbed, true),
-            ARRAY_FILTER_USE_KEY,
-        );
+        $redacted = [];
+
+        foreach ($headers as $name => $value) {
+            $redacted[$name] = in_array(strtolower($name), $scrubbed, true) ? self::REDACTED : $value;
+        }
+
+        return $redacted;
     }
 
     private static function cap(string $body): string

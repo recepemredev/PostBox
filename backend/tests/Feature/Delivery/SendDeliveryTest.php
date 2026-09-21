@@ -6,6 +6,7 @@ use App\Enums\AttemptOutcome;
 use App\Enums\DeliveryStatus;
 use App\Models\Delivery;
 use App\Models\DeliveryAttempt;
+use App\Support\Delivery\AttemptRecord;
 use App\Support\Delivery\Signature;
 use App\Support\Delivery\TransportResult;
 use Carbon\CarbonImmutable;
@@ -162,12 +163,17 @@ it('runs safely twice, sending only once', function (): void {
     expect(forTenant($this->tenant, fn (): int => DeliveryAttempt::query()->count()))->toBe(1);
 });
 
-it('scrubs a sensitive response header before it is stored', function (): void {
+it('redacts a sensitive response header rather than omitting it', function (): void {
     fakeTransport(TransportResult::responded(200, ['Set-Cookie' => 'session=abc'], 'ok', 5));
 
     attemptDelivery($this->tenant, $this->delivery);
 
-    expect(onlyAttempt($this->tenant)->response_headers)->not->toHaveKey('Set-Cookie');
+    // Redacted, not removed: the inspector (Step 14) has to be able to show
+    // that scrubbing happened, which an absent key could never distinguish
+    // from a header that was never sent at all.
+    expect(onlyAttempt($this->tenant)->response_headers)
+        ->toHaveKey('Set-Cookie', AttemptRecord::REDACTED)
+        ->not->toContain('session=abc');
 });
 
 it('caps an oversized response body before it is stored', function (): void {
