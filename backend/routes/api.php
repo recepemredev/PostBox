@@ -13,6 +13,7 @@ use App\Http\Controllers\MeController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\ReplayController;
 use App\Http\Controllers\SessionController;
+use App\Http\Controllers\StreamController;
 use App\Models\ApiKey;
 use App\Models\Application;
 use App\Models\Endpoint;
@@ -131,6 +132,17 @@ Route::prefix('v1')->middleware('dashboard')->group(function (): void {
 
         Route::get('deliveries/{delivery}/attempts', [DeliveryAttemptController::class, 'index'])
             ->name('deliveries.attempts.index');
+
+        /*
+         * The live stream (Step 15): the operator's own feed of delivery
+         * attempts as they happen. A read, like the two routes above it, so
+         * `throttle:stream` — a named limiter (AppServiceProvider), not
+         * `governor` — is what bounds it: a dashboard tab reconnecting must
+         * never spend the message quota Governor exists to protect (D130).
+         */
+        Route::get('stream', StreamController::class)
+            ->middleware('throttle:stream')
+            ->name('stream');
 
         /*
          * Recovery. An operator's own action, so it rides the session

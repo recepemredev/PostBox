@@ -291,4 +291,55 @@ return [
         'max_page_size' => (int) env('POSTBOX_LEDGER_MAX_PAGE_SIZE', 100),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Live stream
+    |--------------------------------------------------------------------------
+    |
+    | The SSE feed (Step 15) tails delivery_attempts rather than any push
+    | mechanism, so these numbers describe a poll, not a subscription.
+    | max_lifetime_seconds bounds one connection so a slow consumer cannot
+    | hold a PHP-FPM child forever — the primary fan-out bound, alongside
+    | max_concurrent_per_tenant below. poll_interval_ms is how often the tail
+    | re-queries; heartbeat_seconds emits a comment line on an idle
+    | connection so a proxy in between never sees a silent socket long enough
+    | to time it out.
+    |
+    | watermark_seconds is the safety margin that makes "resumes without gaps
+    | or duplicates" a property of the query rather than a hope:
+    | delivery_attempts.created_at is second-resolution, and two attempts can
+    | commit out of public_id order inside the same second, so the tail only
+    | ever emits a row once its own second has fully elapsed plus this
+    | margin. batch_size caps one poll the same way postbox.outbox.batch_size
+    | caps one dispatcher pass.
+    |
+    | max_concurrent_per_tenant is the per-tenant slot cap enforced in Redis
+    | (App\Support\Stream\StreamSlots). Its product with the number of
+    | tenants streaming at once has to stay below PHP-FPM's own pool size
+    | minus the headroom ingest and the health check need — this repository
+    | runs the stock pm.max_children = 5 (see benchmarking.md), which is why
+    | the default here is deliberately small until that pool is sized on
+    | purpose.
+    |
+    | reconnect_delay_ms is the retry: value the server sends so the
+    | browser's own EventSource reconnects with Last-Event-ID once the
+    | connection above closes it.
+    |
+    | Every value is env-backed: how long this deployment holds a
+    | connection, how far behind the feed is allowed to run, and how many
+    | concurrent streams a tenant may open are operational decisions, not
+    | product ones — the same reasoning the retry schedule and the breaker
+    | already carry.
+    |
+    */
+    'stream' => [
+        'max_lifetime_seconds' => (int) env('POSTBOX_STREAM_LIFETIME_SECONDS', 30),
+        'poll_interval_ms' => (int) env('POSTBOX_STREAM_POLL_INTERVAL_MS', 1000),
+        'heartbeat_seconds' => (int) env('POSTBOX_STREAM_HEARTBEAT_SECONDS', 10),
+        'watermark_seconds' => (int) env('POSTBOX_STREAM_WATERMARK_SECONDS', 2),
+        'batch_size' => (int) env('POSTBOX_STREAM_BATCH_SIZE', 50),
+        'max_concurrent_per_tenant' => (int) env('POSTBOX_STREAM_MAX_CONCURRENT', 4),
+        'reconnect_delay_ms' => (int) env('POSTBOX_STREAM_RECONNECT_DELAY_MS', 2000),
+    ],
+
 ];

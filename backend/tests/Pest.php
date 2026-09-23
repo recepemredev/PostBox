@@ -630,3 +630,33 @@ function resolveSchema(array $document, array $schema): array
 
     return $resolved;
 }
+
+/**
+ * Parses a raw SSE response body into its own frames — Stream's own tests
+ * are the only consumer of the wire format SseWriter produces, so this is
+ * the one place that format is parsed back apart.
+ *
+ * @return list<array{event: ?string, data: ?string, id: ?string}>
+ */
+function parseSseFrames(string $body): array
+{
+    $frames = [];
+
+    foreach (explode("\n\n", trim($body)) as $block) {
+        $frame = ['event' => null, 'data' => null, 'id' => null];
+
+        foreach (explode("\n", $block) as $line) {
+            if (str_starts_with($line, 'event: ')) {
+                $frame['event'] = substr($line, strlen('event: '));
+            } elseif (str_starts_with($line, 'data: ')) {
+                $frame['data'] = substr($line, strlen('data: '));
+            } elseif (str_starts_with($line, 'id: ')) {
+                $frame['id'] = substr($line, strlen('id: '));
+            }
+        }
+
+        $frames[] = $frame;
+    }
+
+    return $frames;
+}

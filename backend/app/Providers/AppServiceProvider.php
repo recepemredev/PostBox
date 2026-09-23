@@ -93,6 +93,13 @@ final class AppServiceProvider extends ServiceProvider
      * so one account cannot be ground down from many hosts, and the host trying,
      * so one host cannot sweep many accounts. Ingest gets a token bucket of its
      * own in Step 5 — a different mechanism for a different problem.
+     *
+     * The live stream (Step 15) gets its own named limiter too, rather than
+     * `governor`: that middleware spends one quota unit per request, and a
+     * dashboard tab reconnecting every thirty seconds must not bill a
+     * tenant for messages it never published (D130). Thirty a minute is
+     * generous against a thirty-second connection lifetime — about two
+     * reconnects a minute per open tab — and still stops a reconnect storm.
      */
     private function configureRateLimiting(): void
     {
@@ -100,5 +107,17 @@ final class AppServiceProvider extends ServiceProvider
             Limit::perMinute(5)->by(Str::lower($request->string('email')->value()).'|'.$request->ip()),
             Limit::perMinute(20)->by((string) $request->ip()),
         ]);
+
+        RateLimiter::for('stream', static function (Request $request): array {
+            // Authenticatable::getAuthIdentifier() is untyped in the framework
+            // contract, so PHPStan sees mixed; narrowed the same way the five
+            // vendor mixed-return call sites Step 12 already found are (D102).
+            $userId = $request->user()?->getAuthIdentifier();
+            assert($userId === null || is_string($userId) || is_int($userId));
+
+            return [
+                Limit::perMinute(30)->by($userId !== null ? (string) $userId : $request->ip()),
+            ];
+        });
     }
 }
