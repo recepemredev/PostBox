@@ -3110,6 +3110,154 @@
                     }
                 ]
             }
+        },
+        "/v1/stream": {
+            "get": {
+                "operationId": "stream",
+                "tags": [
+                    "Stream"
+                ],
+                "parameters": [
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Last-Event-ID",
+                        "in": "header",
+                        "description": "The opaque cursor from the previous response's own id: field, sent automatically by EventSource on reconnect. Absent on a first connect, where ?cursor= is the equivalent query parameter.",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A live stream of this tenant's delivery attempts, as Server-Sent Events.",
+                        "content": {
+                            "text/event-stream": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "description": "att_..."
+                                        },
+                                        "delivery_id": {
+                                            "type": "string",
+                                            "description": "dlv_..."
+                                        },
+                                        "message_id": {
+                                            "type": "string",
+                                            "description": "msg_..."
+                                        },
+                                        "endpoint_id": {
+                                            "type": "string",
+                                            "description": "ep_..."
+                                        },
+                                        "endpoint_name": {
+                                            "type": "string"
+                                        },
+                                        "event_type": {
+                                            "type": "string"
+                                        },
+                                        "attempt_number": {
+                                            "type": "integer"
+                                        },
+                                        "outcome": {
+                                            "type": "string",
+                                            "enum": [
+                                                "succeeded",
+                                                "failed",
+                                                "timeout",
+                                                "dns_error",
+                                                "tls_error",
+                                                "connection_error",
+                                                "blocked"
+                                            ]
+                                        },
+                                        "response_status": {
+                                            "type": [
+                                                "integer",
+                                                "null"
+                                            ]
+                                        },
+                                        "duration_ms": {
+                                            "type": "integer"
+                                        },
+                                        "delivery_status": {
+                                            "type": "string",
+                                            "enum": [
+                                                "pending",
+                                                "succeeded",
+                                                "exhausted"
+                                            ]
+                                        },
+                                        "created_at": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        }
+                                    },
+                                    "required": [
+                                        "id",
+                                        "delivery_id",
+                                        "message_id",
+                                        "endpoint_id",
+                                        "endpoint_name",
+                                        "event_type",
+                                        "attempt_number",
+                                        "outcome",
+                                        "response_status",
+                                        "duration_ms",
+                                        "delivery_status",
+                                        "created_at"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Too many concurrent live streams, or too many reconnects, for this tenant.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until a retry is likely to succeed.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
         }
     },
     "components": {
