@@ -8,5 +8,6 @@ FROM nginxinc/nginx-unprivileged:1.27-alpine
 
 COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY docker/nginx/conf.d/postbox.conf /etc/nginx/conf.d/default.conf
+COPY docker/nginx/snippets/ /etc/nginx/snippets/
 
 EXPOSE 8080
