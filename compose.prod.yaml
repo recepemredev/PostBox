@@ -15,7 +15,6 @@ x-prod-php: &prod-php
   image: postbox-backend:prod
   build:
     target: prod
-  volumes: !reset []
   environment:
     APP_ENV: production
     APP_DEBUG: "false"
@@ -30,19 +29,39 @@ services:
     ports: !reset []
     restart: unless-stopped
 
+  # `volumes: !reset []` is repeated on every PHP service rather than living once in
+  # `x-prod-php` above: Compose 2.38.2 (the GitHub Actions runner's version) does not
+  # apply a `!reset` tag merged in through a YAML anchor/alias — only 5.1+ (this
+  # project's local Compose) does. An anchor'ed `!reset` silently no-ops on the
+  # runner, and every PHP service keeps its development bind mounts (`./backend`,
+  # the vendor/storage volumes, `./contract`) shadowing the code baked into the
+  # image — a production profile wearing a development stack underneath. Found by
+  # assert-stateless-workers.sh failing only in CI; reproduced locally by rendering
+  # this file with both Compose versions side by side.
   migrate:
     <<: *prod-php
+    volumes: !reset []
     restart: "no"
 
-  backend: *prod-php
+  backend:
+    <<: *prod-php
+    volumes: !reset []
 
-  worker-deliveries: *prod-php
+  worker-deliveries:
+    <<: *prod-php
+    volumes: !reset []
 
-  worker-retries: *prod-php
+  worker-retries:
+    <<: *prod-php
+    volumes: !reset []
 
-  worker-maintenance: *prod-php
+  worker-maintenance:
+    <<: *prod-php
+    volumes: !reset []
 
-  scheduler: *prod-php
+  scheduler:
+    <<: *prod-php
+    volumes: !reset []
 
   frontend:
     image: postbox-frontend:prod
