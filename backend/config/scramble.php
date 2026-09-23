@@ -63,7 +63,11 @@ return [
     ],
 
     'ui' => [
-        'title' => null,
+        // Scramble reads this before falling back to `config('app.name')` for the
+        // document's `info.title`. Pinned so the committed contract does not change
+        // with APP_NAME — CI never sets it (touch .env, no overrides), so the
+        // fallback there is Laravel's own default, "Laravel".
+        'title' => 'PostBox',
     ],
 
     /*

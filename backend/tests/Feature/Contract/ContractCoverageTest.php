@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\URL;
 
 /*
  * The one guarantee this whole step exists for: an endpoint added to routes/api.php
@@ -49,6 +51,21 @@ it('matches the committed contract/openapi.json byte for byte', function (): voi
     // PHP array is not itself part of the contract, and `ci`'s own `git diff` is
     // what enforces the file on disk is exactly what this step's generation writes.
     expect(generatedContract())->toEqual(committedContract());
+});
+
+it('generates the same contract regardless of APP_URL and APP_NAME', function (): void {
+    // The exact drift that broke CI: the committed contract was generated with the
+    // developer's own .env (APP_URL=http://localhost:8080, APP_NAME=PostBox), and CI
+    // generates it with neither set — a different root URL and a different app name
+    // must still produce byte-for-byte the same document.
+    $before = generatedContract();
+
+    URL::forceRootUrl('http://localhost');
+    Config::set('app.name', 'Laravel');
+
+    $after = generatedContract();
+
+    expect($after)->toEqual($before);
 });
 
 it('never exposes an internal integer id', function (): void {

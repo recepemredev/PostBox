@@ -10,6 +10,7 @@ use App\Support\Contract\DescribeIdempotentWrites;
 use App\Support\Contract\DescribeReplayResource;
 use App\Support\Contract\RegisterApiSecuritySchemes;
 use App\Support\Contract\RestrictOperationSecurity;
+use App\Support\Contract\UseRelativeServerUrl;
 use Dedoc\Scramble\Scramble;
 use Illuminate\Support\ServiceProvider;
 
@@ -46,6 +47,7 @@ class ContractServiceProvider extends ServiceProvider
         Scramble::configure()
             ->withDocumentTransformers(RegisterApiSecuritySchemes::class)
             ->withDocumentTransformers(DescribeReplayResource::class)
+            ->withDocumentTransformers(UseRelativeServerUrl::class)
             ->withOperationTransformers(RestrictOperationSecurity::class)
             ->withOperationTransformers(DescribeIdempotentWrites::class)
             ->withOperationTransformers(DescribeDegradedHealth::class)
