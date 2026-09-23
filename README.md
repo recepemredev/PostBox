@@ -36,23 +36,32 @@ Then:
 
 The first honest number, per `.claude/docs/benchmarking.md`: a sink ceiling reported next to
 every PostBox figure, and no claim without a committed k6 script behind it. Full results,
-environment record and raw k6 output: `load/results/2026-09-14/` (Phases 0–3),
-`load/results/2026-09-17/` (Phases 4–5).
+environment record and raw k6 output: `load/results/2026-09-14/` (Phase 1, unchanged),
+`load/results/2026-09-17/` (Phases 4–5, unchanged), `load/results/2026-09-23/` (Phases 0, 2 and 3
+— re-measured for Step 15 Phase C, below).
 
 | Phase | Workers | Throughput | p95 | Sink ceiling | Date |
 |---|---|---|---|---|---|
 | 1 — Sink ceiling | — | ≥ 6,400 req/s | 1.78ms | — | 2026-09-14 |
-| 2 — Ingest (workers stopped) | 0 | 19.9 req/s | 276ms | ≥ 6,400 req/s | 2026-09-14 |
-| 3 — End-to-end delivery | 1 | 14.9 req/s ingest · 100% delivered | 257ms ingest · 44s ingest-to-delivered | ≥ 6,400 req/s | 2026-09-14 |
+| 2 — Ingest (workers stopped) | 0 | 39.6 req/s | 554ms | ≥ 6,400 req/s | 2026-09-23 |
+| 3 — End-to-end delivery | 1 | 14.9 req/s ingest · 100% delivered | 251ms ingest · 58s ingest-to-delivered | ≥ 6,400 req/s | 2026-09-23 |
 | 4 — Backlog drain | 1 container (10 processes) | 400.0 deliveries/s | — | ≥ 6,400 req/s | 2026-09-17 |
 | 4 — Backlog drain | 3 containers (30 processes) | 500.0 deliveries/s | — | ≥ 6,400 req/s | 2026-09-17 |
 | 4 — Backlog drain | 5 containers (50 processes) | 1,000.0 deliveries/s | — | ≥ 6,400 req/s | 2026-09-17 |
 | 5 — Degraded receiver | 1 container | 100% delivered (clean) · 0 dead-lettered (degraded) | — | ≥ 6,400 req/s | 2026-09-17 |
 
-Phase 2's ceiling is `pm.max_children = 5` — the stock PHP-FPM pool size, never tuned by this
-repository — not the ingest logic itself. Phase 3's 44-second delivery latency is
-`DispatchOutboxCommand`'s once-a-minute schedule, not worker throughput: every attempt that ran
-succeeded in about 1ms.
+**Phase 2 and 3 were re-measured on 2026-09-23** (Step 15 Phase C, D136): `pm.max_children` is now
+an explicit `16`, not the stock `5` the original 2026-09-14 figures (19.9 req/s, 44s) were bound
+by — an SSE connection (Step 15) pins one FPM child for its whole life, so the stock pool was no
+longer only a benchmark footnote. Phase 2's new ceiling is `pm.max_children = 16` itself, the same
+kind of finding as before, just a larger number; 50 req/s is already past it (p95 1.09s). Phase
+3's 58s figure is the same run shape as 2026-09-14's own 44s one (449 messages, one dispatcher
+pass) — the gap between them is scheduler-boundary alignment, not a regression, and a *second*
+Phase 3 run at a realistic higher rate (899 messages, exceeding `postbox.outbox.batch_size` (500)
+inside one dispatch tick) found a new, named bottleneck: `load/results/2026-09-23/README.md` has
+the full account of both. `DispatchOutboxCommand`'s once-a-minute schedule, not worker throughput,
+is still what every ingest-to-delivered figure in this table is dominated by — every attempt that
+ran still succeeded in about 1ms.
 
 **Phase 4's curve is not linear, and not the way diminishing returns would predict**: 1→3
 containers gains 25%, 3→5 then gains 100%. Per-attempt latency rises with concurrency (1ms → 3ms
