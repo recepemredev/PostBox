@@ -3,8 +3,8 @@
 # invocations, so the behaviour lives in the compose files rather than here.
 # CI asserts that the two files expose the same targets.
 
-# TARGETS: up down fresh logs test stan format contract check ci prod-up prod-down bench help
-.PHONY: up down fresh logs test stan format contract check ci prod-up prod-down bench help
+# TARGETS: up down fresh logs test stan format contract check sdk ci prod-up prod-down bench help
+.PHONY: up down fresh logs test stan format contract check sdk ci prod-up prod-down bench help
 .DEFAULT_GOAL := help
 
 DEV   := docker compose --profile dev
@@ -73,6 +73,7 @@ format:
 contract:
 	$(DEV) run --rm --user $$(id -u):$$(id -g) backend php artisan scramble:export
 	$(DEV) run --rm --no-deps --user $$(id -u):$$(id -g) frontend npm run contract:types
+	$(DEV) run --rm --no-deps --user $$(id -u):$$(id -g) sdk-ts npm run contract:types
 
 check:
 	$(DEV) run --rm --no-deps backend vendor/bin/pint --test
@@ -81,15 +82,30 @@ check:
 	$(DEV) run --rm --no-deps frontend npm run typecheck
 	$(DEV) run --rm --no-deps frontend npm run build
 
+# Both SDKs' own gates, kept apart from `check` the same way `test` and `stan`
+# already are: individually invokable, and `ci` calls it alongside them.
+sdk:
+	$(DEV) run --rm --no-deps sdk-php vendor/bin/pint --test
+	$(DEV) run --rm --no-deps sdk-php vendor/bin/phpstan analyse --memory-limit=1G
+	$(DEV) run --rm --no-deps sdk-php vendor/bin/pest --colors=always
+	$(DEV) run --rm --no-deps sdk-ts npm run lint
+	$(DEV) run --rm --no-deps sdk-ts npm run typecheck
+	$(DEV) run --rm --no-deps sdk-ts npm run test
+	# dist/ lands inside the bind-mounted source tree, which the image's non-root
+	# user cannot write to — the same reason `format` and `contract` run as the
+	# caller.
+	$(DEV) run --rm --no-deps --user $$(id -u):$$(id -g) sdk-ts npm run build
+
 # Every gate the workflow runs, in one command and in the workflow's order.
 #
-# `check`, `test`, `prod-up` and `prod-down` are called rather than repeated, so
-# the gate cannot drift from the targets it is made of. What this adds is the four
+# `check`, `sdk`, `test`, `prod-up` and `prod-down` are called rather than repeated,
+# so the gate cannot drift from the targets it is made of. What this adds is the four
 # assertions that until now existed only inside the workflow — target parity, the
 # absent baseline, the production image contents and the scheduler singleton — plus
-# the two lock files, which CI installs from and a working tree never re-reads, and
-# the contract drift check (Step 12): `contract` regenerates in place, and a `git
-# diff` catches an endpoint that changed without the committed contract following it.
+# the four lock files (backend, sdk/php, frontend, sdk/ts), which CI installs from
+# and a working tree never re-reads, and the contract drift check (Step 12):
+# `contract` regenerates in place, and a `git diff` catches an endpoint that changed
+# without the committed contract, or either generated types file, following it.
 #
 # The scheduler assertion tears the compose project down. This is a pre-push gate,
 # not something to run beside a live development stack.
@@ -98,12 +114,17 @@ ci:
 	bash docker/scripts/assert-target-parity.sh
 	@test ! -f backend/phpstan-baseline.neon \
 		|| ( echo "FAIL: backend/phpstan-baseline.neon exists — D5 forbids a baseline" >&2; exit 1 )
+	@test ! -f sdk/php/phpstan-baseline.neon \
+		|| ( echo "FAIL: sdk/php/phpstan-baseline.neon exists — D5 forbids a baseline" >&2; exit 1 )
 	@echo "  ok  no phpstan baseline"
 	$(DEV) run --rm --no-deps backend composer validate --strict
+	$(DEV) run --rm --no-deps sdk-php composer validate --strict
 	$(DEV) run --rm --no-deps frontend npm ci --dry-run --no-audit --no-fund
+	$(DEV) run --rm --no-deps sdk-ts npm ci --dry-run --no-audit --no-fund
 	$(MAKE) check
+	$(MAKE) sdk
 	$(MAKE) contract
-	git diff --exit-code contract/openapi.json frontend/src/types/api.d.ts
+	git diff --exit-code contract/openapi.json frontend/src/types/api.d.ts sdk/ts/src/types/api.d.ts
 	$(MAKE) test
 	$(PROD) build
 	bash docker/scripts/assert-production-images.sh
@@ -171,8 +192,9 @@ help:
 	@echo "  make test        run the backend test suite"
 	@echo "  make stan        run Larastan at max"
 	@echo "  make format      rewrite the backend to the Pint style"
-	@echo "  make contract    regenerate contract/openapi.json and the frontend's generated types"
+	@echo "  make contract    regenerate contract/openapi.json, the frontend's and sdk/ts's types"
 	@echo "  make check       Pint, Larastan, ESLint, tsc and next build"
+	@echo "  make sdk         both SDKs' own gates: Pint, PHPStan, Pest, ESLint, tsc, Vitest, build"
 	@echo "  make ci          every gate the workflow runs — the pre-push check"
 	@echo "  make prod-up     build and start the production profile, then assert health"
 	@echo "  make prod-down   stop the production profile"

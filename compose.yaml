@@ -174,6 +174,37 @@ services:
       timeout: 5s
       retries: 5
 
+  # Neither sdk-php nor sdk-ts is started by `up` or `--profile dev`: the SDKs
+  # are packages a consumer installs into their own project, not something
+  # this application serves, so their own tooling only runs on demand
+  # (`make sdk`) behind its own profile. WORKDIR and the contract mount both
+  # sit under /workspace rather than the flat /app every other image uses —
+  # see each Dockerfile's own comment for why the nesting has to match the
+  # host's.
+  sdk-php:
+    image: postbox-sdk-php:dev
+    build:
+      context: .
+      dockerfile: docker/sdk-php/Dockerfile
+      target: dev
+    profiles: ["sdk"]
+    volumes:
+      - ./sdk/php:/workspace/sdk/php
+      - sdk_php_vendor:/workspace/sdk/php/vendor
+      - ./contract:/workspace/contract:ro
+
+  sdk-ts:
+    image: postbox-sdk-ts:dev
+    build:
+      context: .
+      dockerfile: docker/sdk-ts/Dockerfile
+      target: dev
+    profiles: ["sdk"]
+    volumes:
+      - ./sdk/ts:/workspace/sdk/ts
+      - sdk_ts_node_modules:/workspace/sdk/ts/node_modules
+      - ./contract:/workspace/contract:ro
+
   mailpit:
     image: axllent/mailpit:latest
     profiles: ["dev"]
@@ -207,3 +238,5 @@ volumes:
   backend_bootstrap_cache:
   backend_storage:
   frontend_node_modules:
+  sdk_php_vendor:
+  sdk_ts_node_modules:

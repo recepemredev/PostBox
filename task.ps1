@@ -5,7 +5,7 @@
 # invocations, so the behaviour lives in the compose files rather than here.
 # CI asserts that the two files expose the same targets.
 #
-# TARGETS: up down fresh logs test stan format contract check ci prod-up prod-down bench help
+# TARGETS: up down fresh logs test stan format contract check sdk ci prod-up prod-down bench help
 
 [CmdletBinding()]
 param(
@@ -153,6 +153,7 @@ switch ($Target) {
         # reason `format` uses it.
         Invoke-Step ($Dev + @('run', '--rm', '--user', 'root', 'backend', 'php', 'artisan', 'scramble:export'))
         Invoke-Step ($Dev + @('run', '--rm', '--no-deps', '--user', 'root', 'frontend', 'npm', 'run', 'contract:types'))
+        Invoke-Step ($Dev + @('run', '--rm', '--no-deps', '--user', 'root', 'sdk-ts', 'npm', 'run', 'contract:types'))
     }
 
     'check' {
@@ -163,17 +164,32 @@ switch ($Target) {
         Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'frontend', 'npm', 'run', 'build'))
     }
 
+    # Both SDKs' own gates, kept apart from `check` the same way `test` and `stan`
+    # already are: individually invokable, and `ci` calls it alongside them.
+    'sdk' {
+        Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'sdk-php', 'vendor/bin/pint', '--test'))
+        Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'sdk-php', 'vendor/bin/phpstan', 'analyse', '--memory-limit=1G'))
+        Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'sdk-php', 'vendor/bin/pest', '--colors=always'))
+        Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'sdk-ts', 'npm', 'run', 'lint'))
+        Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'sdk-ts', 'npm', 'run', 'typecheck'))
+        Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'sdk-ts', 'npm', 'run', 'test'))
+        # dist/ lands inside the bind-mounted source tree, which the image's
+        # non-root user cannot write to — the same reason `contract` runs as root.
+        Invoke-Step ($Dev + @('run', '--rm', '--no-deps', '--user', 'root', 'sdk-ts', 'npm', 'run', 'build'))
+    }
+
     'ci' {
         # Every gate the workflow runs, in one command and in the workflow's order.
         #
-        # `check`, `test`, `prod-up` and `prod-down` are invoked rather than
+        # `check`, `sdk`, `test`, `prod-up` and `prod-down` are invoked rather than
         # repeated, so the gate cannot drift from the targets it is made of. What
         # this adds is the four assertions that until now existed only inside the
         # workflow — target parity, the absent baseline, the production image
-        # contents and the scheduler singleton — plus the two lock files, which CI
-        # installs from and a working tree never re-reads, and the contract drift
-        # check (Step 12): `contract` regenerates in place, and a `git diff` catches
-        # an endpoint that changed without the committed contract following it.
+        # contents and the scheduler singleton — plus the four lock files (backend,
+        # sdk/php, frontend, sdk/ts), which CI installs from and a working tree
+        # never re-reads, and the contract drift check (Step 12): `contract`
+        # regenerates in place, and a `git diff` catches an endpoint that changed
+        # without the committed contract, or either generated types file, following it.
         #
         # The scheduler assertion tears the compose project down. This is a
         # pre-push gate, not something to run beside a live development stack.
@@ -185,14 +201,20 @@ switch ($Target) {
         if (Test-Path 'backend/phpstan-baseline.neon') {
             throw 'FAIL: backend/phpstan-baseline.neon exists — D5 forbids a baseline'
         }
+        if (Test-Path 'sdk/php/phpstan-baseline.neon') {
+            throw 'FAIL: sdk/php/phpstan-baseline.neon exists — D5 forbids a baseline'
+        }
         Write-Host '  ok  no phpstan baseline' -ForegroundColor DarkGray
 
         Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'backend', 'composer', 'validate', '--strict'))
+        Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'sdk-php', 'composer', 'validate', '--strict'))
         Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'frontend', 'npm', 'ci', '--dry-run', '--no-audit', '--no-fund'))
+        Invoke-Step ($Dev + @('run', '--rm', '--no-deps', 'sdk-ts', 'npm', 'ci', '--dry-run', '--no-audit', '--no-fund'))
 
         & $PSCommandPath check
+        & $PSCommandPath sdk
         & $PSCommandPath contract
-        Invoke-Step @('git', 'diff', '--exit-code', 'contract/openapi.json', 'frontend/src/types/api.d.ts')
+        Invoke-Step @('git', 'diff', '--exit-code', 'contract/openapi.json', 'frontend/src/types/api.d.ts', 'sdk/ts/src/types/api.d.ts')
         & $PSCommandPath test
 
         Invoke-Step ($Prod + @('build'))
@@ -271,8 +293,9 @@ PostBox task runner
   .\task.ps1 test        run the backend test suite
   .\task.ps1 stan        run Larastan at max
   .\task.ps1 format      rewrite the backend to the Pint style
-  .\task.ps1 contract    regenerate contract/openapi.json and the frontend's generated types
+  .\task.ps1 contract    regenerate contract/openapi.json, the frontend's and sdk/ts's types
   .\task.ps1 check       Pint, Larastan, ESLint, tsc and next build
+  .\task.ps1 sdk         both SDKs' own gates: Pint, PHPStan, Pest, ESLint, tsc, Vitest, build
   .\task.ps1 ci          every gate the workflow runs — the pre-push check
   .\task.ps1 prod-up     build and start the production profile, then assert health
   .\task.ps1 prod-down   stop the production profile
