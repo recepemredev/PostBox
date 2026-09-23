@@ -114,6 +114,48 @@ jobs:
         # endpoint added without regenerating the contract fails here.
         run: git diff --exit-code ../contract/openapi.json
 
+  sdk-php:
+    name: sdk/php — Pint, PHPStan, Pest
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: sdk/php
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ hashFiles('sdk/php/composer.lock') }}
+          restore-keys: composer-
+
+      - run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Pint
+        run: vendor/bin/pint --test
+
+      - name: PHPStan (max, no baseline)
+        run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+
+      - name: Assert no PHPStan baseline exists
+        # Decision D5 applies to this package too: the level is never lowered
+        # and a baseline is never created.
+        run: test ! -f phpstan-baseline.neon
+
+      - name: Pest
+        # Reads ../../contract/signature-vectors.json (tests/Pest.php), the
+        # same shared conformance vectors the backend and sdk/ts run.
+        run: vendor/bin/pest --colors=always
+
   frontend:
     name: Frontend — ESLint, tsc, build
     runs-on: ubuntu-latest
@@ -151,6 +193,45 @@ jobs:
         run: npm run test
 
       - name: Next build
+        run: npm run build
+
+  sdk-ts:
+    name: sdk/ts — ESLint, tsc, Vitest, build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: sdk/ts
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: sdk/ts/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Regenerate the contract's TypeScript types
+        run: npm run contract:types
+
+      - name: Assert the committed generated types have no drift
+        run: git diff --exit-code src/types/api.d.ts
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: Vitest
+        # Reads ../../../contract/signature-vectors.json (test/conformance.test.ts),
+        # the same shared conformance vectors the backend and sdk/php run.
+        run: npm run test
+
+      - name: Build
         run: npm run build
 
   images:
