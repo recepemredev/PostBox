@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Support\Contract\DescribeDegradedHealth;
+use App\Support\Contract\DescribeEventStream;
 use App\Support\Contract\DescribeIdempotentWrites;
 use App\Support\Contract\DescribeReplayResource;
 use App\Support\Contract\RegisterApiSecuritySchemes;
@@ -47,6 +48,7 @@ class ContractServiceProvider extends ServiceProvider
             ->withDocumentTransformers(DescribeReplayResource::class)
             ->withOperationTransformers(RestrictOperationSecurity::class)
             ->withOperationTransformers(DescribeIdempotentWrites::class)
-            ->withOperationTransformers(DescribeDegradedHealth::class);
+            ->withOperationTransformers(DescribeDegradedHealth::class)
+            ->withOperationTransformers(DescribeEventStream::class);
     }
 }

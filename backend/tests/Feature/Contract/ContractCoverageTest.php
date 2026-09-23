@@ -82,3 +82,22 @@ it('never exposes an internal integer id', function (): void {
 
     expect($offenders)->toBe([]);
 });
+
+it('describes the stream operation as text/event-stream with a Last-Event-ID header, not the idempotent-write shape governor routes get', function (): void {
+    $operation = operationFor(generatedContract(), 'stream');
+
+    expect($operation['responses']['200']['content'])->toHaveKey('text/event-stream')
+        ->and($operation['responses']['200']['content'])->not->toHaveKey('application/json');
+
+    $headerNames = collect($operation['parameters'] ?? [])
+        ->filter(fn (array $parameter): bool => ($parameter['in'] ?? null) === 'header')
+        ->pluck('name');
+
+    expect($headerNames)->toContain('Last-Event-ID');
+
+    // DescribeIdempotentWrites keys on the `governor` middleware, which this
+    // route deliberately does not carry (D130) — if it ever did, the stream
+    // would wrongly inherit Idempotency-Key and a 201/200 pair that make no
+    // sense for a read.
+    expect($headerNames)->not->toContain('Idempotency-Key');
+});
