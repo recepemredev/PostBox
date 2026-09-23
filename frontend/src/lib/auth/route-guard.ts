@@ -1,8 +1,7 @@
 /**
- * The session cookie's name: `Str::slug(APP_NAME).'-session'`
- * (`backend/config/session.php`), and `APP_NAME=PostBox` in `.env` — so
- * `postbox-session`. A literal rather than an env var: it is a fixed
- * derivation from a value that itself never changes per environment.
+ * The session cookie's name — `postbox-session`, `config('session.cookie')`'s own
+ * fixed default (`backend/config/session.php`). A literal rather than an env var:
+ * the value itself never changes per environment.
  */
 export const SESSION_COOKIE_NAME = "postbox-session";
 

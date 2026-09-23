@@ -38,7 +38,8 @@ final class ApiSecuritySchemes
     public static function sessionCookie(): SecurityScheme
     {
         // The cookie name is never hardcoded here — it is Laravel's own
-        // `session.cookie` config, which defaults to a slug of APP_NAME and can be
+        // `session.cookie` config, which defaults to `postbox-session` (fixed,
+        // not derived from APP_NAME — see config/session.php) and can be
         // overridden by SESSION_COOKIE. Reading it keeps the two from drifting.
         $scheme = SecurityScheme::apiKey('cookie', Config::string('session.cookie'));
         assert($scheme instanceof SecurityScheme);
