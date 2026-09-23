@@ -38,6 +38,11 @@ RUN apk add --no-cache \
 RUN sed -i 's/^user = www-data/;user = www-data/; s/^group = www-data/;group = www-data/' \
         /usr/local/etc/php-fpm.d/www.conf
 
+# Explicit pool sizing (Step 15 Phase C, D136) — see the file's own comment
+# for the arithmetic. Named to sort after the base image's own
+# zz-docker.conf, so these pm.* directives are the ones that win.
+COPY docker/backend/www.conf /usr/local/etc/php-fpm.d/zz-postbox-pool.conf
+
 COPY docker/backend/entrypoint.sh /usr/local/bin/postbox-entrypoint
 RUN chmod +x /usr/local/bin/postbox-entrypoint
 
