@@ -182,12 +182,6 @@ final class DescribeIdempotentWrites implements OperationTransformer
 
     private function errorResponse(int $code, string $description): Response
     {
-        $message = new ObjectType;
-        $message->addProperty('message', new StringType);
-        $message->setRequired(['message']);
-
-        return (new Response($code))
-            ->setDescription($description)
-            ->setContent('application/json', OpenApiSchema::of($message));
+        return OpenApiSchema::errorResponse($code, $description);
     }
 }
