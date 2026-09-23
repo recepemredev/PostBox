@@ -11,7 +11,10 @@ use Illuminate\Support\Facades\Config;
  * HMAC-SHA256 over `{timestamp}.{payload}` — the whole specification is that
  * one sentence in CLAUDE.md, and this class is the executable form of it: the
  * conformance suite in Step 16 exists to prove the PHP and TypeScript SDKs
- * agree with what is written here, byte for byte.
+ * agree with what is written here, byte for byte, against the shared vectors
+ * in `../contract/signature-vectors.json` (tests/Feature/Delivery/
+ * SignatureConformanceTest.php runs them against this class; sdk/php and
+ * sdk/ts run the same file against themselves).
  *
  * PostBox only ever signs; nothing in the delivery path calls verify(). It
  * exists beside sign() anyway, because a signature scheme demonstrated by a

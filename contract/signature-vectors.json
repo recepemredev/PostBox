@@ -1,0 +1,144 @@
+{
+  "$comment": "Step 16 conformance vectors for App\\Support\\Delivery\\Signature (backend), sdk/php and sdk/ts. Every 'header' value here was computed independently with openssl, never with any of the three implementations under test, precisely so this file cannot become a mirror of whichever one wrote it. Signed string is `{unix-seconds timestamp}.{raw payload bytes}`; the HMAC-SHA256 digest is standard base64 (with padding), not hex and not base64url. A secret is used as the raw bytes of its full string, prefix included -- it is never base64-decoded. Regenerate a value with: printf '%s' '{timestamp}.{payload}' | openssl dgst -sha256 -hmac '{secret}' -binary | openssl base64 -A -- then prefix the result with 'v1,'.",
+  "tolerance_seconds": 300,
+  "sign": [
+    {
+      "name": "single_secret",
+      "payload": "{\"event_type\":\"invoice.paid\",\"total\":4200}",
+      "timestamp": 1700000000,
+      "secrets": ["whsec_test_secret"],
+      "header": "v1,a9AAHA7JMeG0INHNN14js11yp3i9Z9UrkM2YkkuySLo="
+    },
+    {
+      "name": "rotation_two_secrets_order_preserved",
+      "payload": "{\"event_type\":\"invoice.paid\",\"total\":4200}",
+      "timestamp": 1700000000,
+      "secrets": ["whsec_test_secret", "whsec_previous_secret"],
+      "header": "v1,a9AAHA7JMeG0INHNN14js11yp3i9Z9UrkM2YkkuySLo= v1,TlTFwOhFgHQRB2L54lIdnyOUTeUBcSiyCBRWBVhRBsw="
+    },
+    {
+      "name": "multibyte_utf8_payload",
+      "payload": "{\"event_type\":\"invoice.paid\",\"note\":\"héllo wörld — 日本語\"}",
+      "timestamp": 1700000100,
+      "secrets": ["whsec_test_secret"],
+      "header": "v1,isVAdMhA+p48IqJ0vqeBMrk9FtMnGTrMAZVOQeC91wc="
+    },
+    {
+      "name": "trailing_newline_payload",
+      "payload": "{\"event_type\":\"invoice.paid\",\"total\":4200}\n",
+      "timestamp": 1700000200,
+      "secrets": ["whsec_test_secret"],
+      "header": "v1,EaKSz3vnPe7UdUJ9lAna54K5amE3Ixe0TLTszpopfxE="
+    }
+  ],
+  "verify": [
+    {
+      "name": "valid",
+      "payload": "{\"event_type\":\"invoice.paid\",\"total\":4200}",
+      "timestamp": 1700000000,
+      "now": 1700000000,
+      "secrets": ["whsec_test_secret"],
+      "header": "v1,a9AAHA7JMeG0INHNN14js11yp3i9Z9UrkM2YkkuySLo=",
+      "valid": true
+    },
+    {
+      "name": "second_active_secret_matches",
+      "payload": "{\"event_type\":\"invoice.paid\",\"total\":4200}",
+      "timestamp": 1700000000,
+      "now": 1700000000,
+      "secrets": ["whsec_test_secret", "whsec_previous_secret"],
+      "header": "v1,TlTFwOhFgHQRB2L54lIdnyOUTeUBcSiyCBRWBVhRBsw=",
+      "valid": true
+    },
+    {
+      "name": "wrong_secret",
+      "payload": "{\"event_type\":\"invoice.paid\",\"total\":4200}",
+      "timestamp": 1700000000,
+      "now": 1700000000,
+      "secrets": ["whsec_test_secret"],
+      "header": "v1,IdOubbxpP0lcjbIdrhEGp41l7mRMvggIW2Ghh2DdOHM=",
+      "valid": false
+    },
+    {
+      "name": "tampered_payload",
+      "payload": "{\"event_type\":\"invoice.paid\",\"total\":4201}",
+      "timestamp": 1700000000,
+      "now": 1700000000,
+      "secrets": ["whsec_test_secret"],
+      "header": "v1,a9AAHA7JMeG0INHNN14js11yp3i9Z9UrkM2YkkuySLo=",
+      "valid": false
+    },
+    {
+      "name": "tolerance_boundary_plus_300",
+      "payload": "{\"event_type\":\"invoice.paid\",\"total\":4200}",
+      "timestamp": 1700000000,
+      "now": 1700000300,
+      "secrets": ["whsec_test_secret"],
+      "header": "v1,a9AAHA7JMeG0INHNN14js11yp3i9Z9UrkM2YkkuySLo=",
+      "valid": true
+    },
+    {
+      "name": "tolerance_boundary_minus_300",
+      "payload": "{\"event_type\":\"invoice.paid\",\"total\":4200}",
+      "timestamp": 1700000000,
+      "now": 1699999700,
+      "secrets": ["whsec_test_secret"],
+      "header": "v1,a9AAHA7JMeG0INHNN14js11yp3i9Z9UrkM2YkkuySLo=",
+      "valid": true
+    },
+    {
+      "name": "one_second_past_tolerance_boundary",
+      "payload": "{\"event_type\":\"invoice.paid\",\"total\":4200}",
+      "timestamp": 1700000000,
+      "now": 1700000301,
+      "secrets": ["whsec_test_secret"],
+      "header": "v1,a9AAHA7JMeG0INHNN14js11yp3i9Z9UrkM2YkkuySLo=",
+      "valid": false
+    },
+    {
+      "name": "one_second_before_negative_tolerance_boundary",
+      "payload": "{\"event_type\":\"invoice.paid\",\"total\":4200}",
+      "timestamp": 1700000000,
+      "now": 1699999699,
+      "secrets": ["whsec_test_secret"],
+      "header": "v1,a9AAHA7JMeG0INHNN14js11yp3i9Z9UrkM2YkkuySLo=",
+      "valid": false
+    },
+    {
+      "name": "unknown_version_token_skipped_valid_one_still_matches",
+      "payload": "{\"event_type\":\"invoice.paid\",\"total\":4200}",
+      "timestamp": 1700000000,
+      "now": 1700000000,
+      "secrets": ["whsec_test_secret"],
+      "header": "v2,not-a-real-signature v1,a9AAHA7JMeG0INHNN14js11yp3i9Z9UrkM2YkkuySLo=",
+      "valid": true
+    },
+    {
+      "name": "doubled_space_between_tokens_tolerated",
+      "payload": "{\"event_type\":\"invoice.paid\",\"total\":4200}",
+      "timestamp": 1700000000,
+      "now": 1700000000,
+      "secrets": ["whsec_test_secret"],
+      "header": "v1,a9AAHA7JMeG0INHNN14js11yp3i9Z9UrkM2YkkuySLo=  not-a-token",
+      "valid": true
+    },
+    {
+      "name": "empty_token_value_skipped",
+      "payload": "{\"event_type\":\"invoice.paid\",\"total\":4200}",
+      "timestamp": 1700000000,
+      "now": 1700000000,
+      "secrets": ["whsec_test_secret"],
+      "header": "v1,",
+      "valid": false
+    },
+    {
+      "name": "unrecognizable_header",
+      "payload": "{\"event_type\":\"invoice.paid\",\"total\":4200}",
+      "timestamp": 1700000000,
+      "now": 1700000000,
+      "secrets": ["whsec_test_secret"],
+      "header": "garbage",
+      "valid": false
+    }
+  ]
+}
