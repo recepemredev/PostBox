@@ -14,6 +14,7 @@
 /frontend/out/
 /backend/public/build/
 /backend/public/hot
+/sdk/ts/dist/
 
 # Laravel runtime state
 /backend/storage/framework/cache/data/*

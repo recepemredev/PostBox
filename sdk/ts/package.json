@@ -1,0 +1,35 @@
+{
+  "name": "@postbox/sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "PostBox client SDK: publish events, verify webhook signatures, typed errors.",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json",
+    "contract:types": "openapi-typescript ../../contract/openapi.json -o src/types/api.d.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9",
+    "@types/node": "^22",
+    "eslint": "^9",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5",
+    "typescript-eslint": "^8",
+    "vitest": "^2.1.8"
+  }
+}
