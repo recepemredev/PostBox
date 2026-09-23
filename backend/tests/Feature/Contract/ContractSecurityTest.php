@@ -29,6 +29,14 @@ it('requires the bearer API key on the ingest route, and nothing else', function
         ->toBe([['bearerApiKey' => []]]);
 });
 
+it('describes the 401 every api-key-guarded route answers with a bad or missing key', function (): void {
+    $operation = operationFor(generatedContract(), 'messages.store');
+
+    expect($operation['responses'])->toHaveKey('401');
+    expect($operation['responses']['401']['content']['application/json']['schema']['properties'])
+        ->toHaveKey('message');
+});
+
 it('requires the session cookie on every operator route', function (): void {
     $document = generatedContract();
 

@@ -2415,6 +2415,24 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "The API key is missing, malformed or no longer valid.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -3939,11 +3957,18 @@
                         "description": "An event type is registered before it can be published, rather than\ncreated here: a typo would otherwise become a permanent event type\nthat no endpoint is subscribed to, and the message would be accepted\nand delivered nowhere. The lookup needs no tenant predicate of its\nown \u2014 the application connects as a role Row Level Security applies\nto, so it can only ever match a row in the current tenant."
                     },
                     "payload": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "minItems": 1
+                        "anyOf": [
+                            {
+                                "type": "object",
+                                "description": "A JSON object."
+                            },
+                            {
+                                "type": "array",
+                                "description": "A non-empty JSON array.",
+                                "items": {},
+                                "minItems": 1
+                            }
+                        ]
                     }
                 },
                 "required": [

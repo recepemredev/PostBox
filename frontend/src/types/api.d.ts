@@ -664,7 +664,7 @@ export interface components {
              *     to, so it can only ever match a row in the current tenant.
              */
             event_type: string;
-            payload: string[];
+            payload: Record<string, never> | unknown[];
         };
         /** ReplayMessageRequest */
         ReplayMessageRequest: {
@@ -1818,6 +1818,17 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessageResource"];
+                };
+            };
+            /** @description The API key is missing, malformed or no longer valid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message: string;
+                    };
                 };
             };
             /** @description This tenant's quota for the current billing period has been exhausted. */

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Support\Contract\DescribeApiKeyAuthentication;
 use App\Support\Contract\DescribeDegradedHealth;
 use App\Support\Contract\DescribeEventStream;
 use App\Support\Contract\DescribeIdempotentWrites;
+use App\Support\Contract\DescribeIngestPayload;
 use App\Support\Contract\DescribeReplayResource;
 use App\Support\Contract\RegisterApiSecuritySchemes;
 use App\Support\Contract\RestrictOperationSecurity;
@@ -50,6 +52,8 @@ class ContractServiceProvider extends ServiceProvider
             ->withDocumentTransformers(UseRelativeServerUrl::class)
             ->withOperationTransformers(RestrictOperationSecurity::class)
             ->withOperationTransformers(DescribeIdempotentWrites::class)
+            ->withOperationTransformers(DescribeIngestPayload::class)
+            ->withOperationTransformers(DescribeApiKeyAuthentication::class)
             ->withOperationTransformers(DescribeDegradedHealth::class)
             ->withOperationTransformers(DescribeEventStream::class);
     }

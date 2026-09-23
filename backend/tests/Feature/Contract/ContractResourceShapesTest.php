@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 /*
- * Two shapes Scramble's own static analysis cannot follow on its own, both recorded
- * in App\Support\Contract: HealthController returns a JsonResponse built and then
+ * Shapes Scramble's own static analysis cannot follow on its own, all recorded in
+ * App\Support\Contract: HealthController returns a JsonResponse built and then
  * mutated (->response()->setStatusCode()), not a bare Resource; ReplayResource
- * spreads next_cursor in conditionally (D83).
+ * spreads next_cursor in conditionally (D83); PublishMessageRequest's `payload`
+ * rule is a plain `array`, which Scramble has no PHP type to infer an item shape
+ * from and defaults to "array of strings" (DescribeIngestPayload).
  */
 
 it('describes the same health report shape on both 200 and 503', function (): void {
@@ -39,4 +41,22 @@ it('describes next_cursor on the shared replay receipt shape', function (): void
         // is documented but never required — a message-scope replay never returns it.
         expect($schema['required'] ?? [])->not->toContain('next_cursor');
     }
+});
+
+it('documents the ingest payload as a JSON object or a non-empty array, not an array of strings', function (): void {
+    $document = generatedContract();
+
+    $requestSchema = resolveSchema(
+        $document,
+        operationFor($document, 'messages.store')['requestBody']['content']['application/json']['schema'],
+    );
+
+    $payload = $requestSchema['properties']['payload'];
+
+    expect($payload['anyOf'])->toHaveCount(2);
+
+    $shapes = collect($payload['anyOf'])->keyBy('type');
+
+    expect($shapes['object'])->not->toHaveKey('items')
+        ->and($shapes['array']['minItems'])->toBe(1);
 });
