@@ -1,0 +1,45 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "postbox/sdk",
+    "type": "library",
+    "description": "PostBox client SDK: publish events, verify webhook signatures, typed errors.",
+    "license": "MIT",
+    "require": {
+        "php": "^8.4",
+        "psr/clock": "^1.0",
+        "psr/http-client": "^1.0",
+        "psr/http-factory": "^1.1"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.24",
+        "nyholm/psr7": "^1.8",
+        "pestphp/pest": "^4.0",
+        "phpstan/phpstan": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PostBox\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "pest",
+        "stan": "phpstan analyse",
+        "lint": "pint --test",
+        "format": "pint"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

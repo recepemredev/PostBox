@@ -1,0 +1,11 @@
+parameters:
+    level: max
+
+    paths:
+        - src
+
+    # Tests are outside the analysed paths for the same reason as backend/phpstan.neon
+    # and sink/phpstan.neon: Pest binds $this inside a test closure to the TestCase at
+    # runtime, which no static analyser can see. The suite is verified by running it.
+    #
+    # There is no baseline file and there will not be one — see decision D5.
