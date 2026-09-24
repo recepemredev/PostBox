@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ApiError } from "@/lib/api/errors";
-import { getIdentity } from "@/lib/identity";
+import { getIdentity, hasPermission } from "@/lib/identity";
 import { logoutAction } from "./actions";
 
 const NAV_ITEMS = [
@@ -9,6 +9,10 @@ const NAV_ITEMS = [
   { href: "/messages", label: "Messages" },
   { href: "/live", label: "Live" },
   { href: "/event-types", label: "Event types" },
+  // Both roles hold operations.read today (D147), but the nav still checks
+  // it rather than assuming — the same way every other item here would if
+  // it ever needed to (none currently does).
+  { href: "/operations", label: "Operations", permission: "operations.read" },
 ];
 
 /**
@@ -36,11 +40,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <div className="flex items-center gap-6">
             <span className="text-sm font-semibold text-text">PostBox</span>
             <nav className="flex gap-4">
-              {NAV_ITEMS.map((item) => (
-                <Link key={item.href} href={item.href} className="text-sm text-text-muted hover:text-text">
-                  {item.label}
-                </Link>
-              ))}
+              {NAV_ITEMS.filter((item) => !item.permission || hasPermission(identity.permissions, item.permission)).map(
+                (item) => (
+                  <Link key={item.href} href={item.href} className="text-sm text-text-muted hover:text-text">
+                    {item.label}
+                  </Link>
+                ),
+              )}
             </nav>
           </div>
 

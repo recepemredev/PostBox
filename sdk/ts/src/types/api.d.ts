@@ -662,12 +662,12 @@ export interface components {
         };
         /** OperationsResource */
         OperationsResource: {
-            queues: unknown[];
+            queues: components["schemas"]["QueueWorkloadResource"][];
             breakers: {
                 closed: number;
                 open: number;
                 half_open: number;
-                tripped: string[];
+                tripped: components["schemas"]["TrippedBreakerResource"][];
             };
         };
         /**
@@ -691,6 +691,15 @@ export interface components {
              */
             event_type: string;
             payload: Record<string, never> | unknown[];
+        };
+        /** QueueWorkloadResource */
+        QueueWorkloadResource: {
+            name: string;
+            length: number;
+            wait_ms: number;
+            processes: number;
+            runtime_ms: number;
+            throughput: number;
         };
         /** ReplayMessageRequest */
         ReplayMessageRequest: {
@@ -793,6 +802,13 @@ export interface components {
             };
             delivery_id: string;
             delivery_status: string;
+        };
+        /** TrippedBreakerResource */
+        TrippedBreakerResource: {
+            endpoint_id: string;
+            endpoint_name: string;
+            state: string;
+            state_changed_at: string;
         };
         /** UpdateApplicationRequest */
         UpdateApplicationRequest: {

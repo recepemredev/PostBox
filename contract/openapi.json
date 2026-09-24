@@ -3984,7 +3984,9 @@
                 "properties": {
                     "queues": {
                         "type": "array",
-                        "items": {}
+                        "items": {
+                            "$ref": "#/components/schemas/QueueWorkloadResource"
+                        }
                     },
                     "breakers": {
                         "type": "object",
@@ -4001,7 +4003,7 @@
                             "tripped": {
                                 "type": "array",
                                 "items": {
-                                    "type": "string"
+                                    "$ref": "#/components/schemas/TrippedBreakerResource"
                                 }
                             }
                         },
@@ -4047,6 +4049,38 @@
                     "payload"
                 ],
                 "title": "PublishMessageRequest"
+            },
+            "QueueWorkloadResource": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "length": {
+                        "type": "integer"
+                    },
+                    "wait_ms": {
+                        "type": "integer"
+                    },
+                    "processes": {
+                        "type": "integer"
+                    },
+                    "runtime_ms": {
+                        "type": "integer"
+                    },
+                    "throughput": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "name",
+                    "length",
+                    "wait_ms",
+                    "processes",
+                    "runtime_ms",
+                    "throughput"
+                ],
+                "title": "QueueWorkloadResource"
             },
             "ReplayMessageRequest": {
                 "type": "object",
@@ -4284,6 +4318,30 @@
                     "delivery_status"
                 ],
                 "title": "TestEventResource"
+            },
+            "TrippedBreakerResource": {
+                "type": "object",
+                "properties": {
+                    "endpoint_id": {
+                        "type": "string"
+                    },
+                    "endpoint_name": {
+                        "type": "string"
+                    },
+                    "state": {
+                        "type": "string"
+                    },
+                    "state_changed_at": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "endpoint_id",
+                    "endpoint_name",
+                    "state",
+                    "state_changed_at"
+                ],
+                "title": "TrippedBreakerResource"
             },
             "UpdateApplicationRequest": {
                 "type": "object",

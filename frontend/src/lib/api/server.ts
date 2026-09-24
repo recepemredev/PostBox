@@ -263,3 +263,9 @@ export function replayRange(endpointId: string, from: string, to: string): Promi
     to,
   } satisfies Schemas["ReplayRangeRequest"]);
 }
+
+// --- Operations (Step 17) ------------------------------------------------------
+
+export function getOperations(): Promise<Schemas["OperationsResource"]> {
+  return apiFetch("GET", "/operations");
+}
