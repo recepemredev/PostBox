@@ -244,6 +244,9 @@ jobs:
       - name: Assert the two task runners expose the same targets
         run: bash docker/scripts/assert-target-parity.sh
 
+      - name: Assert every tracked doc references only a tracked path
+        run: bash docker/scripts/assert-doc-links.sh
+
       - name: Prepare environment file
         run: cp .env.example .env
 

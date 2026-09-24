@@ -3,8 +3,8 @@
 This directory is written for a reader who has ten minutes and wants to know whether the
 decisions in this codebase were made or merely defaulted into.
 
-It is deliberately short. The full internal working record lives in
-`.claude/docs/decision-log.md`; only decisions worth a reviewer's attention are promoted here.
+It is deliberately short. A fuller internal working record exists on the maintainer's own machine,
+untracked by design (`CLAUDE.md`) — only decisions worth a reviewer's attention are promoted here.
 
 ## Index
 

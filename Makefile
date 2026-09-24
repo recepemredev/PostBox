@@ -99,9 +99,10 @@ sdk:
 # Every gate the workflow runs, in one command and in the workflow's order.
 #
 # `check`, `sdk`, `test`, `prod-up` and `prod-down` are called rather than repeated,
-# so the gate cannot drift from the targets it is made of. What this adds is the four
-# assertions that until now existed only inside the workflow — target parity, the
-# absent baseline, the production image contents and the scheduler singleton — plus
+# so the gate cannot drift from the targets it is made of. What this adds is the five
+# assertions that until now existed only inside the workflow — target parity, every
+# tracked doc referencing only a tracked path (Step 17), the absent baseline, the
+# production image contents and the scheduler singleton — plus
 # the four lock files (backend, sdk/php, frontend, sdk/ts), which CI installs from
 # and a working tree never re-reads, and the contract drift check (Step 12):
 # `contract` regenerates in place, and a `git diff` catches an endpoint that changed
@@ -112,6 +113,7 @@ sdk:
 ci:
 	$(ensure_env)
 	bash docker/scripts/assert-target-parity.sh
+	bash docker/scripts/assert-doc-links.sh
 	@test ! -f backend/phpstan-baseline.neon \
 		|| ( echo "FAIL: backend/phpstan-baseline.neon exists — D5 forbids a baseline" >&2; exit 1 )
 	@test ! -f sdk/php/phpstan-baseline.neon \
