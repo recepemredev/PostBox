@@ -22,6 +22,7 @@ use App\Support\Resilience\RetryPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * One delivery, attempted once: signed, sent — or refused before a single
@@ -153,11 +154,23 @@ final readonly class AttemptDelivery
      */
     private function record(Delivery $delivery, Endpoint $endpoint, int $attemptNumber, array $fields): array
     {
-        DeliveryAttempt::create([
+        $attempt = DeliveryAttempt::create([
             ...$fields,
             'delivery_id' => $delivery->id,
             'endpoint_id' => $endpoint->id,
             'attempt_number' => $attemptNumber,
+        ]);
+
+        // Never the payload, a header or the URL itself — those are tenant
+        // data (CLAUDE.md), and everything an operator needs to correlate an
+        // attempt is already a public id.
+        Log::info('delivery.attempt_recorded', [
+            'attempt_id' => $attempt->public_id,
+            'delivery_id' => $delivery->public_id,
+            'endpoint_id' => $endpoint->public_id,
+            'outcome' => $fields['outcome']->value,
+            'response_status' => $fields['response_status'],
+            'duration_ms' => $fields['duration_ms'],
         ]);
 
         return $fields;
@@ -208,6 +221,13 @@ final readonly class AttemptDelivery
             'last_attempted_at' => $now,
             'exhausted_at' => $now,
             'failure_reason' => $decision->reason,
+        ]);
+
+        Log::info('delivery.dead_lettered', [
+            'delivery_id' => $delivery->public_id,
+            'endpoint_id' => $delivery->endpoint->public_id,
+            'attempt_count' => $attemptNumber,
+            'reason' => $decision->reason,
         ]);
     }
 

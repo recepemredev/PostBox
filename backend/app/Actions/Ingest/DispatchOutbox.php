@@ -15,6 +15,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * The other half of the outbox: moving committed obligations onto the queue.
@@ -65,6 +66,10 @@ final readonly class DispatchOutbox
 
         foreach ($claimed->groupBy('endpoint_id') as $endpointId => $deliveries) {
             $dispatched += $this->admitGroup($endpoints[$endpointId], $deliveries, $tenant, $now);
+        }
+
+        if ($dispatched > 0) {
+            Log::info('outbox.dispatched', ['tenant_id' => $tenant, 'count' => $dispatched]);
         }
 
         return $dispatched;

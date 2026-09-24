@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\EnforceLimits;
 use App\Http\Middleware\EstablishTenant;
@@ -23,6 +24,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // `GET /api/health` is the only health surface, and it probes dependencies.
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        /*
+         * First in the stack, ahead of every group below — a request id has to
+         * exist before anything downstream can log against it, and it applies
+         * to every request this application answers, including the health
+         * probe, which belongs to neither the `dashboard` group nor `api-key`.
+         */
+        $middleware->prepend(AssignRequestId::class);
+
         /*
          * The dashboard is a browser client on the same origin as the API, so its
          * credential is a session cookie and CSRF applies to it. Laravel's own

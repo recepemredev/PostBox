@@ -12,6 +12,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Context;
 
 /**
  * One delivery, handed to a worker.
@@ -54,9 +55,19 @@ final class SendDelivery implements ShouldQueue
 
         $context->runFor($tenant, function () use ($attempt): void {
             $delivery = Delivery::query()
-                ->with('endpoint')
+                ->with(['endpoint', 'message'])
                 ->where('public_id', $this->deliveryId)
                 ->firstOrFail();
+
+            // The delivery path's own correlation is the public ids, not the
+            // request id that enqueued this job — a queued job outlives the
+            // request, and only the ids below are still meaningful once it
+            // has (bootstrap/app.php's AssignRequestId docblock).
+            Context::add([
+                'delivery_id' => $delivery->public_id,
+                'endpoint_id' => $delivery->endpoint->public_id,
+                'message_id' => $delivery->message->public_id,
+            ]);
 
             $attempt->handle($delivery, CarbonImmutable::now());
         });

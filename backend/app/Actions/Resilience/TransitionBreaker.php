@@ -12,6 +12,7 @@ use App\Models\EndpointCircuitBreaker;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * The only place a breaker's state actually changes, and the only place a
@@ -125,6 +126,12 @@ final readonly class TransitionBreaker
             entityPublicId: $endpoint->public_id,
             changes: ['state' => ['before' => $from->value, 'after' => $to->value]],
         );
+
+        Log::info('breaker.transitioned', [
+            'endpoint_id' => $endpoint->public_id,
+            'from' => $from->value,
+            'to' => $to->value,
+        ]);
     }
 
     private static function action(BreakerState $to): string

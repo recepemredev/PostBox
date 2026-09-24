@@ -18,6 +18,14 @@ x-prod-php: &prod-php
   environment:
     APP_ENV: production
     APP_DEBUG: "false"
+    # The default channel (config/logging.php) writes to a file inside the
+    # container, which `docker compose logs` never shows and a container
+    # recreation discards. Every PHP-based service under this anchor —
+    # backend, every worker and the scheduler — logs one JSON object per
+    # line to stderr instead, which is what Step 17's correlation ids
+    # (request_id; delivery_id/endpoint_id/message_id) are for.
+    LOG_CHANNEL: stderr
+    LOG_STDERR_FORMATTER: Monolog\Formatter\JsonFormatter
   restart: unless-stopped
 
 services:
