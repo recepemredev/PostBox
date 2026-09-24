@@ -148,7 +148,10 @@ services:
       # Read-only: the frontend consumes the contract, it never produces it.
       - ./contract:/contract:ro
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:3000"]
+      # /health, not /: / redirects to /login, and the probe must never risk
+      # entering middleware's CSRF priming, which fetches through nginx —
+      # nginx starts only once this healthcheck passes (D145).
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:3000/health"]
       interval: 15s
       timeout: 5s
       retries: 5

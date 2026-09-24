@@ -16,6 +16,17 @@ export function requiresSession(pathname: string): boolean {
 }
 
 /**
+ * The container healthcheck's own path (compose.yaml, src/app/health/route.ts).
+ * middleware.ts checks this first and returns early for it — neither the
+ * redirect above nor the CSRF priming below may run for it, since the CSRF
+ * fetch goes through nginx, and nginx starts only once this healthcheck
+ * passes.
+ */
+export function isHealthProbe(pathname: string): boolean {
+  return pathname === "/health";
+}
+
+/**
  * The cookie's mere presence is not proof of a valid session — only a fast
  * path that saves a round trip for the common case of no cookie at all.
  * The backend's own 401 (shouldRenderJsonWhen(true), always JSON, never a

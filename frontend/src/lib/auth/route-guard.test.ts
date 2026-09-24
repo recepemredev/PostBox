@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { requiresSession, shouldRedirectToLogin } from "./route-guard";
+import { isHealthProbe, requiresSession, shouldRedirectToLogin } from "./route-guard";
+
+describe("isHealthProbe", () => {
+  it("matches only the healthcheck's own path", () => {
+    expect(isHealthProbe("/health")).toBe(true);
+  });
+
+  it("does not match a dashboard or auth path", () => {
+    expect(isHealthProbe("/login")).toBe(false);
+    expect(isHealthProbe("/applications")).toBe(false);
+  });
+});
 
 describe("requiresSession", () => {
   it("does not require a session on /login", () => {

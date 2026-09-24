@@ -1,5 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE_NAME, shouldRedirectToLogin } from "@/lib/auth/route-guard";
+import {
+  isHealthProbe,
+  SESSION_COOKIE_NAME,
+  shouldRedirectToLogin,
+} from "@/lib/auth/route-guard";
 import { apiBaseUrl, buildApiUrl } from "@/lib/api/url";
 
 /**
@@ -17,8 +21,16 @@ import { apiBaseUrl, buildApiUrl } from "@/lib/api/url";
  *    middleware fetches /v1/csrf-cookie itself and forwards its Set-Cookie
  *    onto the response the browser actually receives — the one place in
  *    this app a Set-Cookie can be proxied from the backend to the browser.
+ *
+ * Neither job may run for the healthcheck path: the CSRF fetch goes through
+ * nginx, and nginx only starts once this healthcheck passes, so if it ever
+ * ran here, the container could never become healthy.
  */
 export async function middleware(request: NextRequest): Promise<NextResponse> {
+  if (isHealthProbe(request.nextUrl.pathname)) {
+    return NextResponse.next();
+  }
+
   const hasSessionCookie = request.cookies.has(SESSION_COOKIE_NAME);
 
   if (shouldRedirectToLogin(request.nextUrl.pathname, hasSessionCookie)) {
