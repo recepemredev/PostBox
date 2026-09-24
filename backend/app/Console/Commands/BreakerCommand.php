@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Actions\Tenancy\RunForEachTenant;
-use App\Enums\BreakerState;
 use App\Models\EndpointCircuitBreaker;
 use App\Models\Tenant;
 use Illuminate\Console\Command;
@@ -61,9 +60,8 @@ final class BreakerCommand extends Command
     private function rowsFor(int $limit): array
     {
         $breakers = EndpointCircuitBreaker::query()
-            ->whereIn('state', [BreakerState::Open, BreakerState::HalfOpen])
+            ->tripped()
             ->with('endpoint')
-            ->orderByDesc('state_changed_at')
             ->limit($limit)
             ->get();
 

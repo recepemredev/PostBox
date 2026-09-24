@@ -34,3 +34,12 @@ Schedule::command(DispatchOutboxCommand::class)->everyMinute()->withoutOverlappi
  * the configured lifetime instead of up to a day past it.
  */
 Schedule::command(PruneIdempotencyKeysCommand::class)->hourly()->withoutOverlapping();
+
+/*
+ * config/horizon.php already keeps 24 job and 24 queue snapshots — dead
+ * config until something actually takes one. Five minutes is Horizon's own
+ * documented interval: frequent enough that the operations screen's queue
+ * metrics (Step 17) are never far behind the workers producing them, rare
+ * enough that a snapshot is not itself a meaningful load on Redis.
+ */
+Schedule::command('horizon:snapshot')->everyFiveMinutes()->withoutOverlapping();

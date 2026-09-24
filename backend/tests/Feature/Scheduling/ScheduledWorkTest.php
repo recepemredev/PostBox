@@ -42,15 +42,15 @@ it('guards every scheduled command against overlapping itself', function (): voi
     }
 });
 
-it('registers exactly the three commands the scheduler is meant to run', function (): void {
+it('registers exactly the four commands the scheduler is meant to run', function (): void {
     $names = collect(scheduledEvents())
-        ->map(fn (Event $event): string => collect(['partitions:ensure', 'outbox:dispatch', 'idempotency:prune'])
+        ->map(fn (Event $event): string => collect(['partitions:ensure', 'outbox:dispatch', 'idempotency:prune', 'horizon:snapshot'])
             ->first(fn (string $name): bool => str_ends_with($event->command, $name)) ?? $event->command)
         ->sort()
         ->values()
         ->all();
 
-    expect($names)->toBe(['idempotency:prune', 'outbox:dispatch', 'partitions:ensure']);
+    expect($names)->toBe(['horizon:snapshot', 'idempotency:prune', 'outbox:dispatch', 'partitions:ensure']);
 });
 
 it('relies on the scheduler being a singleton rather than on onOneServer', function (): void {

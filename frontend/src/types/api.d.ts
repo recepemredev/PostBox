@@ -358,6 +358,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["operations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/messages/{message}/replay": {
         parameters: {
             query?: never;
@@ -643,6 +659,16 @@ export interface components {
                 exhausted: number;
             };
             created_at: string;
+        };
+        /** OperationsResource */
+        OperationsResource: {
+            queues: unknown[];
+            breakers: {
+                closed: number;
+                open: number;
+                half_open: number;
+                tripped: string[];
+            };
         };
         /**
          * PublishMessageRequest
@@ -1892,6 +1918,28 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    operations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `OperationsResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationsResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
     "replays.message": {

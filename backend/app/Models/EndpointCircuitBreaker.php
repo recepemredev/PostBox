@@ -8,6 +8,7 @@ use App\Enums\BreakerState;
 use App\Models\Concerns\BelongsToTenant;
 use Carbon\CarbonImmutable;
 use Database\Factories\EndpointCircuitBreakerFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -53,6 +54,21 @@ final class EndpointCircuitBreaker extends Model
     public function endpoint(): BelongsTo
     {
         return $this->belongsTo(Endpoint::class);
+    }
+
+    /**
+     * Every currently-tripped breaker — open or half-open — most recently
+     * changed first. Shared by the operator's own shell command
+     * (BreakerCommand) and the dashboard's operations read (Step 17): both
+     * ask the same question, "what does an operator need to act on right
+     * now", and a closed breaker has nothing left on it to act on even
+     * though its row still exists.
+     *
+     * @param  Builder<$this>  $query
+     */
+    public function scopeTripped(Builder $query): void
+    {
+        $query->whereIn('state', [BreakerState::Open, BreakerState::HalfOpen])->orderByDesc('state_changed_at');
     }
 
     /**

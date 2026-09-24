@@ -11,12 +11,14 @@ use App\Http\Controllers\EventTypeController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\MeController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\OperationsController;
 use App\Http\Controllers\ReplayController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\StreamController;
 use App\Models\ApiKey;
 use App\Models\Application;
 use App\Models\Endpoint;
+use App\Models\EndpointCircuitBreaker;
 use App\Models\EndpointSecret;
 use App\Models\EventType;
 use Illuminate\Support\Facades\Route;
@@ -143,6 +145,17 @@ Route::prefix('v1')->middleware('dashboard')->group(function (): void {
         Route::get('stream', StreamController::class)
             ->middleware('throttle:stream')
             ->name('stream');
+
+        /*
+         * The operations screen (Step 17): queue depth and this tenant's
+         * breakers, for an operator asking "is the system healthy right
+         * now" rather than "what happened to this delivery" (the ledger's
+         * own question). No request body, so authorization is declared on
+         * the route like every other unfiltered read above it.
+         */
+        Route::get('operations', OperationsController::class)
+            ->can('viewAny', EndpointCircuitBreaker::class)
+            ->name('operations');
 
         /*
          * Recovery. An operator's own action, so it rides the session

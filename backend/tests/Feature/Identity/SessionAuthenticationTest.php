@@ -35,6 +35,7 @@ it('signs a member in and answers with who they are and where', function (): voi
             'endpoint_secret.manage',
             'endpoint.test',
             'ledger.read',
+            'operations.read',
         ]);
 
     $this->assertAuthenticatedAs($this->ada);
@@ -106,5 +107,5 @@ it('tells a viewer that they may only read', function (): void {
     $this->actingAs($viewer)
         ->getJson(route('me'))
         ->assertOk()
-        ->assertJsonPath('permissions', ['api_key.read', 'catalog.read', 'ledger.read']);
+        ->assertJsonPath('permissions', ['api_key.read', 'catalog.read', 'ledger.read', 'operations.read']);
 });

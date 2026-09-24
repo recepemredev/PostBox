@@ -2442,6 +2442,37 @@
                 ]
             }
         },
+        "/v1/operations": {
+            "get": {
+                "operationId": "operations",
+                "tags": [
+                    "Operations"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`OperationsResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OperationsResource"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
         "/v1/messages/{message}/replay": {
             "post": {
                 "operationId": "replays.message",
@@ -3947,6 +3978,46 @@
                     "created_at"
                 ],
                 "title": "MessageSummaryResource"
+            },
+            "OperationsResource": {
+                "type": "object",
+                "properties": {
+                    "queues": {
+                        "type": "array",
+                        "items": {}
+                    },
+                    "breakers": {
+                        "type": "object",
+                        "properties": {
+                            "closed": {
+                                "type": "integer"
+                            },
+                            "open": {
+                                "type": "integer"
+                            },
+                            "half_open": {
+                                "type": "integer"
+                            },
+                            "tripped": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "required": [
+                            "closed",
+                            "open",
+                            "half_open",
+                            "tripped"
+                        ]
+                    }
+                },
+                "required": [
+                    "queues",
+                    "breakers"
+                ],
+                "title": "OperationsResource"
             },
             "PublishMessageRequest": {
                 "type": "object",
