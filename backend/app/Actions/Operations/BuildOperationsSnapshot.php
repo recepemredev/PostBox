@@ -77,17 +77,18 @@ final readonly class BuildOperationsSnapshot
     }
 
     /**
-     * @param  array{name: string, length: int, wait: int, processes: int, split_queues: mixed}|null  $row
+     * @param  array{name: string, length: int, wait: float, processes: int, split_queues: mixed}|null  $row
      */
     private function workloadFor(string $name, ?array $row): QueueWorkload
     {
         return new QueueWorkload(
             name: $name,
             length: $row['length'] ?? 0,
-            // WorkloadRepository reports wait in seconds; CLAUDE.md's
-            // "durations are integer milliseconds" applies to what this
-            // application hands back over HTTP, not to Horizon's own unit.
-            waitMs: ($row['wait'] ?? 0) * 1000,
+            // WorkloadRepository reports wait in seconds, as the float its
+            // own round() returns; CLAUDE.md's "durations are integer
+            // milliseconds" applies to what this application hands back
+            // over HTTP, not to Horizon's own unit.
+            waitMs: (int) round(($row['wait'] ?? 0.0) * 1000),
             processes: $row['processes'] ?? 0,
             runtimeMs: (int) round($this->metrics->runtimeForQueue($name)),
             throughput: $this->metrics->throughputForQueue($name),

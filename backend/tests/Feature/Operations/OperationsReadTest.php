@@ -20,7 +20,7 @@ use Laravel\Horizon\Contracts\WorkloadRepository;
  */
 
 /**
- * @param  list<array{name: string, length: int, wait: int, processes: int, split_queues: null}>  $workloadRows
+ * @param  list<array{name: string, length: int, wait: float, processes: int, split_queues: null}>  $workloadRows
  * @param  array<string, float>  $runtimeMs
  * @param  array<string, int>  $throughput
  */
@@ -46,8 +46,8 @@ it("returns queue workload and this tenant's breaker counts", function (): void 
 
     fakeHorizon(
         workloadRows: [
-            ['name' => 'deliveries', 'length' => 3, 'wait' => 2, 'processes' => 10, 'split_queues' => null],
-            ['name' => 'retries', 'length' => 1, 'wait' => 0, 'processes' => 5, 'split_queues' => null],
+            ['name' => 'deliveries', 'length' => 3, 'wait' => 2.0, 'processes' => 10, 'split_queues' => null],
+            ['name' => 'retries', 'length' => 1, 'wait' => 0.0, 'processes' => 5, 'split_queues' => null],
         ],
         runtimeMs: ['deliveries' => 12.5, 'retries' => 4.0],
         throughput: ['deliveries' => 42, 'retries' => 3],
