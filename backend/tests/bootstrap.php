@@ -38,6 +38,11 @@ $environment = [
     'CACHE_STORE' => 'array',
     'SESSION_DRIVER' => 'array',
     'MAIL_MAILER' => 'array',
+
+    // The development stack also writes a daily log file for Laravel Boost to
+    // read. The suite stays on stderr so its deliberate errors never surface
+    // there as the application's last error.
+    'LOG_STACK' => 'stderr',
 ];
 
 foreach ($environment as $key => $value) {

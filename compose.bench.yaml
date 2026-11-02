@@ -26,6 +26,12 @@ networks:
       config:
         - subnet: 203.0.113.0/24
 
+# Development's .env adds a daily log file beside stderr for Laravel Boost.
+# Every PHP service here goes back to stderr alone, the way it was measured,
+# so a disk write per delivery is never part of the numbers.
+x-bench-logging: &bench-logging
+  LOG_CHANNEL: stderr
+
 services:
   # The receiver under test. On the bench network only, so `sink` resolves to a
   # 203.0.113.x address from the workers and the guard lets it through, while
@@ -63,6 +69,7 @@ services:
   # longest run here spends a small fraction of the pro plan's monthly ceiling.
   backend:
     environment:
+      <<: *bench-logging
       POSTBOX_RATE_LIMIT_PRO_CAPACITY: "5000"
       POSTBOX_RATE_LIMIT_PRO_REFILL_PER_SECOND: "5000"
 
@@ -70,14 +77,25 @@ services:
   # sink, and they keep their place on the default network for postgres and
   # redis. Nothing else joins bench.
   worker-deliveries:
+    environment: *bench-logging
     networks:
       - default
       - bench
 
   worker-retries:
+    environment: *bench-logging
     networks:
       - default
       - bench
+
+  migrate:
+    environment: *bench-logging
+
+  worker-maintenance:
+    environment: *bench-logging
+
+  scheduler:
+    environment: *bench-logging
 
   # Not started by `up`. Each phase of the protocol runs it with its own
   # script: Phase 1 drives the sink directly over the bench network, Phases 2
