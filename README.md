@@ -184,6 +184,27 @@ PostBox is not deployed anywhere. Production readiness is verified locally: the 
 profile builds, starts and passes the same deep health check (`task.ps1 prod-up` /
 `make prod-up`). This README will not imply a deployment that does not exist.
 
+## Development tooling
+
+Laravel Boost's MCP server is wired through `.mcp.json`. It runs inside the backend container
+(`docker compose exec -T backend php artisan boost:mcp`), so an MCP-capable editor or agent on
+the host reads the live schema, queries the database as the application's own RLS-bound role,
+searches version-matched framework documentation and reads the application log, all with no
+PHP installed on the host.
+
+`backend/config/boost.php` turns off what does not fit this project:
+- **Browser logs.** Boost collects them from HTML that Laravel serves. Here the dashboard is the
+  Next.js application, and Laravel serves only the API.
+- **`record-rule`.** Its rules would be a second rule source beside the project's own conventions.
+
+Development also logs to a seven-day file beside stderr, because the log tools need a path.
+Production and the benchmark stay on stderr alone.
+
+`boost:install` is deliberately not run. The project carries its own conventions, and several of
+Boost's general guidelines contradict choices made here on purpose: an injected clock rather than
+`now()`, an injected HTTP transport rather than `Http::fake()`, and concurrency tests that depend
+on `RefreshDatabase`.
+
 ## Documentation
 
 | Document | What |
