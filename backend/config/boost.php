@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Laravel\Boost\Mcp\Tools\BrowserLogs;
+use Laravel\Boost\Mcp\Tools\RecordRule;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,6 +20,11 @@ use Laravel\Boost\Mcp\Tools\BrowserLogs;
 | and a log channel nothing writes to, and the tool would only ever report a
 | missing file.
 |
+| record-rule is off too. It writes agent-recorded rules to .ai/rules, a second
+| source of project rules beside CLAUDE.md and the conventions document. Run in
+| the container, it would also land under backend/ on a mount the container
+| user cannot write.
+|
 | Boost is a development dependency. The production image does not contain
 | this class, which is safe because `::class` resolves the name without
 | loading it.
@@ -30,7 +36,7 @@ return [
 
     'mcp' => [
         'tools' => [
-            'exclude' => [BrowserLogs::class],
+            'exclude' => [BrowserLogs::class, RecordRule::class],
         ],
     ],
 ];
